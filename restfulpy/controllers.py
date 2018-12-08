@@ -1,7 +1,5 @@
-import types
-from urllib.parse import parse_qs
-
-from nanohttp import Controller, context, json, RestController, action
+from nanohttp import Controller, context, json, RestController, \
+    JsonPatchControllerMixin
 
 from restfulpy.orm import DBSession
 
@@ -29,58 +27,22 @@ class ModelRestController(RestController):
         return self.__model__.json_metadata()
 
 
-def split_path(url):
-    if '?' in url:
-        path, query = url.split('?')
-    else:
-        path, query = url, ''
+class JsonPatchDBAwareControllerMixin(JsonPatchControllerMixin):
 
-    return path, {k: v[0] if len(v) == 1 else v for k, v in parse_qs(
-        query,
-        keep_blank_values=True,
-        strict_parsing=False
-    ).items()}
-
-
-class JsonPatchControllerMixin:
-
-    @action(content_type='application/json')
+    @json
     def patch(self: Controller):
-        """
-        Set context.method
-        Set context.form
-        :return:
-        """
-        # Preserve patches
-        patches = context.form
-        results = []
-        context.jsonpatch = True
-
         try:
-            for patch in patches:
-                context.form = patch.get('value', {})
-                path, context.query = split_path(patch['path'])
-                context.method = patch['op'].lower()
-
-                remaining_paths = path.split('/')
-                if remaining_paths and not remaining_paths[0]:
-                    return_data = self()
-                else:
-                    return_data = self(*remaining_paths)
-
-                if isinstance(return_data, types.GeneratorType):
-                    results.append('"%s"' % ''.join(list(return_data)))
-                else:
-                    results.append(return_data)
-
-                DBSession.flush()
-                context.query = {}
-
+            results = super().patch()
             DBSession.commit()
-            return '[%s]' % ',\n'.join(results)
+            results = [r.to_dict() if hasattr(r, 'to_dict') else r \
+                      for r in results]
+            return results
+
         except:
             if DBSession.is_active:
                 DBSession.rollback()
             raise
+
         finally:
             del context.jsonpatch
+

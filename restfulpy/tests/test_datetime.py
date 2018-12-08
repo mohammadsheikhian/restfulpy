@@ -7,7 +7,8 @@ from nanohttp import json
 from sqlalchemy import Integer, DateTime
 
 from restfulpy.configuration import settings
-from restfulpy.controllers import JsonPatchControllerMixin, ModelRestController
+from restfulpy.controllers import JsonPatchDBAwareControllerMixin, \
+    ModelRestController
 from restfulpy.datetimehelpers import parse_datetime, format_datetime
 from restfulpy.mockup import mockup_localtimezone
 from restfulpy.orm import commit, DeclarativeBase, Field, DBSession
@@ -20,7 +21,7 @@ class Metting(DeclarativeBase):
     when = Field(DateTime)
 
 
-class Root(JsonPatchControllerMixin, ModelRestController):
+class Root(JsonPatchDBAwareControllerMixin, ModelRestController):
     __model__ = 'metting'
 
     @json

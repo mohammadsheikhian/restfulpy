@@ -2,19 +2,15 @@ from bddrest import response, when, status
 from nanohttp import json
 from sqlalchemy import Unicode, Integer
 
-from restfulpy.controllers import JsonPatchControllerMixin, ModelRestController
+from restfulpy.controllers import ModelRestController
 from restfulpy.orm import commit, DeclarativeBase, Field, DBSession, \
     FilteringMixin, PaginationMixin, OrderingMixin, ModifiedMixin
 from restfulpy.testing import ApplicableTestCase
 
 
-class SqlErrorCheckingModel(
-    ModifiedMixin,
-    FilteringMixin,
-    PaginationMixin,
-    OrderingMixin,
-    DeclarativeBase
-):
+class SqlErrorCheckingModel(ModifiedMixin, FilteringMixin, PaginationMixin,
+                            OrderingMixin, DeclarativeBase):
+
     __tablename__ = 'sql_error_checking_model'
 
     id = Field(Integer, primary_key=True)

@@ -7,7 +7,8 @@ from nanohttp import json
 from sqlalchemy import Integer, Date
 
 from restfulpy.configuration import settings
-from restfulpy.controllers import JsonPatchControllerMixin, ModelRestController
+from restfulpy.controllers import JsonPatchDBAwareControllerMixin, \
+    ModelRestController
 from restfulpy.datetimehelpers import parse_datetime, format_datetime, \
     parse_date, format_date
 from restfulpy.mockup import mockup_localtimezone
@@ -21,7 +22,7 @@ class Party(DeclarativeBase):
     when = Field(Date)
 
 
-class Root(JsonPatchControllerMixin, ModelRestController):
+class Root(JsonPatchDBAwareControllerMixin, ModelRestController):
     __model__ = 'party'
 
     @json
