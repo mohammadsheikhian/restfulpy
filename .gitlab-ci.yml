@@ -1,0 +1,21 @@
+before_script:
+    - service postgresql start && service redis-server start
+    - virtualenv restfulpy-ve
+    - source restfulpy-ve/bin/activate
+    - pip install -r requirements-pre-install.txt
+    - pip install -e . -r requirements-ci.txt
+
+stages:
+    - test coverage
+
+test and coverage:
+    stage: test coverage
+    script:
+        - pytest --cov=restfulpy
+    artifacts:
+        name: $CI_PROJECT_TITLE-$CI_COMMIT_REF_SLUG
+        paths:
+            - data/markdown
+        when: on_success
+        expire_in: 2h
+
