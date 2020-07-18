@@ -1,0 +1,2 @@
+git+ssh://git@git.carrene.com/Carrene/nanohttp.git@master
+git+ssh://git@git.carrene.com/Carrene/bddrest.git@master
