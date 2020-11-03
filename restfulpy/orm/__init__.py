@@ -3,7 +3,7 @@ import functools
 from os.path import exists
 
 from nanohttp import settings, context
-from sqlalchemy import create_engine as sa_create_engine
+from sqlalchemy import create_engine as sa_create_engine, inspect
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.sql.schema import MetaData
 from sqlalchemy.ext.declarative import declarative_base
@@ -54,10 +54,11 @@ def setup_schema(session=None):
     engine = session.bind
     metadata.create_all(bind=engine)
 
-    query = session.execute('select * from alembic_version')
-    alembic_version = query.fetchall()
+    inspector = inspect(engine)
+    table_names = inspector.get_table_names()
+    has_alembic_version = True if 'alembic_version' in table_names else False
 
-    if len(alembic_version) == 0 and \
+    if not has_alembic_version and \
             hasattr(settings, 'migration') and \
             exists(settings.migration.directory):  # pragma: no cover
         alembic_cfg = config.Config()
