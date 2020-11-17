@@ -52,23 +52,24 @@ def init_model(engine):
 def setup_schema(session=None):
     session = session or DBSession
     engine = session.bind
-    metadata.create_all(bind=engine)
-
     inspector = inspect(engine)
     table_names = inspector.get_table_names()
     has_alembic_version = True if 'alembic_version' in table_names else False
 
-    if not has_alembic_version and \
-            hasattr(settings, 'migration') and \
-            exists(settings.migration.directory):  # pragma: no cover
-        alembic_cfg = config.Config()
-        alembic_cfg.set_main_option(
-            "script_location",
-            settings.migration.directory,
-        )
-        alembic_cfg.set_main_option("sqlalchemy.url", str(engine.url))
-        alembic_cfg.config_file_name = settings.migration.ini
-        command.stamp(alembic_cfg, "head")
+    if not has_alembic_version:
+        metadata.create_all(bind=engine)
+
+        if hasattr(settings, 'migration') and \
+                exists(settings.migration.directory):
+
+            alembic_cfg = config.Config()
+            alembic_cfg.set_main_option(
+                "script_location",
+                settings.migration.directory,
+            )
+            alembic_cfg.set_main_option("sqlalchemy.url", str(engine.url))
+            alembic_cfg.config_file_name = settings.migration.ini
+            command.stamp(alembic_cfg, "head")
 
 
 def create_thread_unsafe_session():
