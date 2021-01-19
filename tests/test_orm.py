@@ -1,9 +1,8 @@
 from datetime import date, time
 
-import pytest
-from nanohttp import HTTPBadRequest, settings
+from nanohttp import settings
 from nanohttp.contexts import Context
-from sqlalchemy import Integer, Unicode, ForeignKey, Boolean, Table, Date,\
+from sqlalchemy import Integer, Unicode, ForeignKey, Boolean, Date, \
     Time, Float
 from sqlalchemy.orm import synonym
 
@@ -55,20 +54,23 @@ class Author(DeclarativeBase):
         index=True,
         json='firstName',
         min_length=2,
-        watermark='First Name'
+        watermark='First Name',
+        mask=True,
     )
     last_name = Field(
         Unicode(100),
         json='lastName',
         min_length=2,
-        watermark='Last Name'
+        watermark='Last Name',
+        mask=True,
     )
     phone = Field(
         Unicode(10), nullable=True, json='phone', min_length=10,
         pattern=\
             r'\d{3}[-\.\s]??\d{3}[-\.\s]??\d{4}|\(\d{3}\)\s*\d{3}[-\.\s]??'
             r'\d{4}|\d{3}[-\.\s]??\d{4}',
-        watermark='Phone'
+        watermark='Phone',
+        mask=True,
     )
     name = composite(
         FullName,
@@ -86,9 +88,21 @@ class Author(DeclarativeBase):
         protected=True,
         min_length=6
     )
-    birth = Field(Date)
-    weight = Field(Float(asdecimal=True))
-    age = Field(Integer, default=18, minimum=18, maximum=100)
+    birth = Field(
+        Date,
+        mask=True,
+    )
+    weight = Field(
+        Float(asdecimal=True),
+        mask=True,
+    )
+    age = Field(
+        Integer,
+        default=18,
+        minimum=18,
+        maximum=100,
+        mask=True,
+    )
 
     def _set_password(self, password):
         self._password = 'hashed:%s' % password
@@ -119,21 +133,29 @@ class Comment(DeclarativeBase):
     post = relationship('Post')
 
 
-post_tag_table = Table(
-    'post_tag', DeclarativeBase.metadata,
-    Field('post_id', Integer, ForeignKey('post.id')),
-    Field('tag_id', Integer, ForeignKey('tag.id'))
-)
+class PostTag(DeclarativeBase):
+    __tablename__ = 'post_tag'
+
+    post_id = Field(Integer, ForeignKey('post.id'), primary_key=True)
+    tag_id = Field(Integer, ForeignKey('tag.id'), primary_key=True)
 
 
 class Tag(DeclarativeBase):
     __tablename__ = 'tag'
-    id = Field(Integer, primary_key=True)
-    title = Field(Unicode(50), watermark='title', label='title')
+    id = Field(
+        Integer,
+        primary_key=True,
+    )
+    title = Field(
+        Unicode(50),
+        watermark='title',
+        label='title',
+    )
     posts = relationship(
         'Post',
-        secondary=post_tag_table,
-        back_populates='tags'
+        secondary='post_tag',
+        back_populates='tags',
+        protected=False,
     )
 
 
@@ -143,16 +165,20 @@ class Post(ModifiedMixin, DeclarativeBase):
     id = Field(Integer, primary_key=True)
     title = Field(Unicode(50), watermark='title', label='title')
     author_id = Field(ForeignKey('author.id'), json='authorId')
-    author = relationship(Author, protected=False)
+    author = relationship(Author, protected=False, mask=True,)
     memos = relationship(Memo, protected=True, json='privateMemos')
     comments = relationship(Comment, protected=False)
     tags = relationship(
         Tag,
-        secondary=post_tag_table,
+        secondary='post_tag',
         back_populates='posts',
-        protected=False
+        protected=True,
     )
     tag_time = Field(Time)
+
+    def to_dict(self, **kwargs):
+        post_dict = super().to_dict(**kwargs)
+        return post_dict
 
 
 def test_model(db):
@@ -175,37 +201,72 @@ def test_model(db):
             birth=date(1, 1, 1),
             weight=1.1
         )
+        tag1 = Tag(
+            title='First Tag',
+        )
+        session.add(tag1)
 
         post1 = Post(
             title='First post',
             author=author1,
-            tag_time=time(1, 1, 1)
+            tag_time=time(1, 1, 1),
+            created_at='2021-01-18T07:41:49.118552',
         )
         session.add(post1)
+        session.flush()
+
+        post1_tag1 = PostTag(
+            post_id=post1.id,
+            tag_id=tag1.id,
+        )
+        session.add(post1_tag1)
         session.commit()
 
         assert post1.id == 1
 
+        author1_dict = author1.to_dict()
+        assert {
+            'email': 'author1@example.org',
+            'firstName': 'author 1 first name',
+            'id': 1,
+            'lastName': 'author 1 last name',
+            'phone': None,
+            'title': 'author1',
+            'birth': '0001-01-01',
+            'weight': 1.100,
+            'age': 18,
+            }.items() == author1_dict.items()
+
         post1_dict = post1.to_dict()
         assert {
-                'author': {
-                    'email': 'author1@example.org',
-                    'firstName': 'author 1 first name',
-                    'id': 1,
-                    'lastName': 'author 1 last name',
-                    'phone': None,
-                    'title': 'author1',
-                    'birth': '0001-01-01',
-                    'weight': 1.100,
-                    'age': 18
-                },
-                'authorId': 1,
-                'comments': [],
+            'author': {
+                'email': 'author1@example.org',
                 'id': 1,
-                'tags': [],
-                'title': 'First post',
-                'tagTime': '01:01:01',
-            }.items() < post1_dict.items()
+                'title': 'author1',
+            },
+            'authorId': 1,
+            'comments': [],
+            'id': 1,
+            'title': 'First post',
+            'tagTime': '01:01:01',
+        }.items() < post1_dict.items()
+
+        tag1_dict = tag1.to_dict()
+        assert {
+            'id': 1,
+            'title': 'First Tag',
+            'posts': [
+                {
+                    'id': 1,
+                    'title': 'First post',
+                    'authorId': 1,
+                    'comments': [],
+                    'tagTime': '01:01:01',
+                    'createdAt':'2021-01-18T07:41:49.118552',
+                    'modifiedAt': None,
+                }
+            ]
+        }.items() == tag1_dict.items()
 
         assert 'createdAt' in post1_dict
         assert 'modifiedAt' in post1_dict
@@ -215,22 +276,21 @@ def test_model(db):
 
 
 def test_metadata(db):
-        # Metadata
-        author_metadata = Author.json_metadata()
-        assert 'id' in author_metadata['fields']
-        assert'email' in author_metadata['fields']
-        assert author_metadata['fields']['fullName']['protected'] == True
-        assert author_metadata['fields']['password']['protected'] == True
+    # Metadata
+    author_metadata = Author.json_metadata()
+    assert 'id' in author_metadata['fields']
+    assert 'email' in author_metadata['fields']
+    assert author_metadata['fields']['fullName']['protected'] is True
+    assert author_metadata['fields']['password']['protected'] is True
 
-        post_metadata = Post.json_metadata()
-        assert'author' in post_metadata['fields']
+    post_metadata = Post.json_metadata()
+    assert 'author' in post_metadata['fields']
 
-        comment_metadata = Comment.json_metadata()
-        assert 'post' in comment_metadata['fields']
+    comment_metadata = Comment.json_metadata()
+    assert 'post' in comment_metadata['fields']
 
-        tag_metadata = Tag.json_metadata()
-        assert 'posts' in tag_metadata['fields']
+    tag_metadata = Tag.json_metadata()
+    assert 'posts' in tag_metadata['fields']
 
-        assert Comment.import_value(Comment.__table__.c.special, 'TRUE') ==\
-            True
+    assert Comment.import_value(Comment.__table__.c.special, 'TRUE') is True
 

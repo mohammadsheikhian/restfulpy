@@ -10,7 +10,7 @@ class Field(Column):
                  pattern=None, pattern_description=None, watermark=None,
                  not_none=None, nullable=False, required=None, label=None,
                  example=None, default=None, python_type=None, message=None,
-                 **kwargs):
+                 mask=False, **kwargs):
 
         info = {
             'json': json,
@@ -28,6 +28,7 @@ class Field(Column):
             'not_none': not_none,
             'default': default,
             'type': python_type,
+            'mask': mask,
         }
 
         if max_length is None and args \
@@ -51,11 +52,13 @@ class Field(Column):
         )
 
 
-def relationship(*args, json=None, protected=True, readonly=True, **kwargs):
+def relationship(*args, json=None, protected=True, readonly=True, mask=False,
+                 **kwargs):
     info = {
         'json': json,
         'protected': protected,
         'readonly': readonly,
+        'mask': mask,
     }
 
     return sa_relationship(*args, info=info, **kwargs)
