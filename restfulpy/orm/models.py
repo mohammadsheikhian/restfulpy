@@ -55,14 +55,14 @@ class BaseModel(object):
         return info
 
     @classmethod
-    def prepare_for_export(cls, column, v):
+    def prepare_for_export(cls, column, v, **kwargs):
         info = cls.get_column_info(column)
         param_name = info.get('json')
 
         if hasattr(column, 'property') \
                 and isinstance(column.property, RelationshipProperty) \
                 and column.property.uselist:
-            result = [c.to_dict() for c in v]
+            result = [c.to_dict(include_mask_columns=False) for c in v]
 
         elif hasattr(column, 'property') \
             and isinstance(column.property, CompositeProperty):
@@ -81,7 +81,7 @@ class BaseModel(object):
             result = format_time(v)
 
         elif hasattr(v, 'to_dict'):
-            result = v.to_dict()
+            result = v.to_dict(include_mask_columns=False)
 
         elif isinstance(v, Decimal):
             result = str(v)
@@ -100,7 +100,7 @@ class BaseModel(object):
                 relationships=True,
                 include_readonly_columns=True,
                 include_protected_columns=True
-            ):
+        ):
             yield from MetadataField.from_column(
                 cls.get_column(c),
                 info=cls.get_column_info(c)
@@ -146,11 +146,13 @@ class BaseModel(object):
 
     @classmethod
     def iter_json_columns(cls, include_readonly_columns=True,
-                          include_protected_columns=False, **kw):
+                          include_protected_columns=False,
+                          include_mask_columns=True, **kw):
         for c in cls.iter_columns(**kw):
 
             info = cls.get_column_info(c)
             if (not include_protected_columns and info.get('protected')) or \
+                    (not include_mask_columns and info.get('mask')) or \
                     (not include_readonly_columns and info.get('readonly')):
                 continue
 
@@ -198,9 +200,9 @@ class BaseModel(object):
                 else:
                     yield c, value
 
-    def to_dict(self):
+    def to_dict(self, **kwargs):
         result = {}
-        for c in self.iter_json_columns():
+        for c in self.iter_json_columns(**kwargs):
             result.setdefault(
                 *self.prepare_for_export(c, getattr(self, c.key))
             )
