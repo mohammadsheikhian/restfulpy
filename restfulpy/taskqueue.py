@@ -95,7 +95,8 @@ class RestfulpyTask(TimestampMixin, DeclarativeBase):
             raise
 
     @classmethod
-    def cleanup(cls, session=DBSession, filters=None, statuses=['in-progress']):
+    def cleanup(cls, session=DBSession, filters=None,
+                statuses=['in-progress']):
         cleanup_query = session.query(RestfulpyTask) \
             .filter(RestfulpyTask.status.in_(statuses))
 
@@ -110,6 +111,17 @@ class RestfulpyTask(TimestampMixin, DeclarativeBase):
                 'started_at': None,
                 'terminated_at': None
             }, synchronize_session='fetch')
+
+        for task_class in RestfulpyTask.__subclasses__():
+            session.query(task_class) \
+                .filter(task_class.status == 'success') \
+                .delete()
+            
+        session.commit()
+        session.expire_all()
+        session.query(RestfulpyTask) \
+            .filter(RestfulpyTask.status == 'success') \
+            .delete()
 
     @classmethod
     def reset_status(cls, task_id, session=DBSession,
@@ -163,7 +175,7 @@ def worker(statuses={'new'}, filters=None, tries=-1):
 
         except:
             logger.error('Error when executing task: %s' % task.id)
-            task.status = 'failed'
+            task.status = 'new'
             task.fail_reason = traceback.format_exc()[-4096:]
 
         finally:

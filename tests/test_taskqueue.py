@@ -1,5 +1,9 @@
 import threading
 
+from sqlalchemy import Integer
+from sqlalchemy.orm import object_session
+
+from restfulpy.orm import Field
 from restfulpy.taskqueue import RestfulpyTask, worker
 
 
@@ -33,8 +37,19 @@ class BadTask(RestfulpyTask):
         'polymorphic_identity': 'bad_task'
     }
 
+    tries = Field(
+        Integer,
+        json='tries',
+        nullable=True,
+    )
+
     def do_(self, context):
-        raise Exception()
+        session = object_session(self)
+        self.tries += 1
+        session.commit()
+
+        if self.tries % 2 != 0:
+            raise Exception()
 
 
 def test_worker(db):
@@ -45,7 +60,9 @@ def test_worker(db):
     another_task = AnotherTask()
     session.add(another_task)
 
-    bad_task = BadTask()
+    bad_task = BadTask(
+        tries=1,
+    )
     session.add(bad_task)
 
     session.commit()
@@ -53,8 +70,8 @@ def test_worker(db):
     tasks = worker(tries=0, filters=RestfulpyTask.type == 'awesome_task')
     assert len(tasks) == 1
 
-    assert awesome_task_done.is_set() == True
-    assert another_task_done.is_set() == False
+    assert awesome_task_done.is_set() is True
+    assert another_task_done.is_set() is False
 
     session.refresh(awesome_task)
     assert awesome_task.status == 'success'
@@ -63,7 +80,8 @@ def test_worker(db):
     assert len(tasks) == 1
     bad_task_id = tasks[0][0]
     session.refresh(bad_task)
-    assert bad_task.status == 'failed'
+    assert bad_task.status == 'success'
+    assert bad_task.tries == 2
 
     tasks = worker(tries=0, filters=RestfulpyTask.type == 'bad_task')
     assert len(tasks) == 0
@@ -77,7 +95,7 @@ def test_worker(db):
     RestfulpyTask.reset_status(bad_task_id, session)
     session.commit()
     tasks = worker(tries=0, filters=RestfulpyTask.type == 'bad_task')
-    assert len(tasks) == 1
+    assert len(tasks) == 2
 
     tasks = worker(tries=0, filters=RestfulpyTask.type == 'bad_task')
     assert len(tasks) == 0
@@ -86,14 +104,11 @@ def test_worker(db):
     RestfulpyTask.cleanup(session, statuses=('in-progress', 'failed'))
     session.commit()
 
-    tasks = worker(tries=0, filters=RestfulpyTask.type == 'bad_task')
-    assert len(tasks) == 1
-
-    tasks = worker(tries=0, filters=RestfulpyTask.type == 'bad_task')
-    assert len(tasks) == 0
-
     # Doing all remaining tasks
     tasks = worker(tries=0)
+    assert len(tasks) == 1
+
+    tasks = session.query(RestfulpyTask).all()
     assert len(tasks) == 1
 
 
