@@ -51,7 +51,7 @@ class MemberKeywords(DeclarativeBase):
 
 
 class Member(ActivationMixin, ModifiedMixin, FilteringMixin, PaginationMixin,
-    OrderingMixin, DeclarativeBase):
+             OrderingMixin, DeclarativeBase):
     __tablename__ = 'member'
 
     id = Field(Integer, primary_key=True)
@@ -149,6 +149,7 @@ class Member(ActivationMixin, ModifiedMixin, FilteringMixin, PaginationMixin,
     )
 
     _avatar = Field('avatar', Unicode(255), nullable=True, protected=True)
+
     def _set_avatar(self, avatar):  # pragma: no cover
         self._avatar = 'avatar:%s' % avatar
 
@@ -176,8 +177,15 @@ class Root(JSONPatchControllerMixin, ModelRestController):
         return m
 
     @json
+    @commit
+    def put(self, member_id):
+        m = DBSession.query(Member).get(member_id)
+        m.update_from_request(strip_value=False)
+        return m
+
+    @json
     @Member.expose
-    def get(self, title: str=None):
+    def get(self, title: str = None):
         query = DBSession.query(Member)
         if title:
             return query.filter(Member.title == title).one_or_none()
@@ -199,7 +207,7 @@ class TestBaseModel(ApplicableTestCase):
                 'Posting a form',
                 verb='POST',
                 form=dict(
-                    title='test',
+                    title='test  ',
                     firstName='test',
                     lastName='test',
                     email='test@example.com',
@@ -214,6 +222,7 @@ class TestBaseModel(ApplicableTestCase):
             assert 'avatar' not in response.json
             assert '_avatar' not in response.json
             assert 'avatarImage' in response.json
+            member_id = response.json['id']
 
             # 400 for sending relationship attribute
             when(
@@ -234,11 +243,22 @@ class TestBaseModel(ApplicableTestCase):
                 'weight': '1.1000000000'
             }.items() <= response.json.items()
 
+        with self.given(
+                'Putting a form',
+                verb='PUT',
+                form=dict(
+                    title='test  ',
+                ),
+                url=f'/member_id: {member_id}',
+        ):
+            assert status == 200
+            assert response.json['title'] == 'test  '
+
     def test_pagination(self):
         with self.given(
                 'Getting a single object using pagination',
                 query=dict(take=1)
-            ):
+        ):
 
             assert len(response.json) == 1
             assert response.json[0]['title'] == 'test'
@@ -294,8 +314,8 @@ class TestBaseModel(ApplicableTestCase):
             fields = response.json['fields']
             assert 'id' in fields
             assert 'firstName' in fields
-            assert fields['id']['primaryKey'] == True
-            assert fields['title']['primaryKey'] == False
+            assert fields['id']['primaryKey'] is True
+            assert fields['title']['primaryKey'] is False
             assert fields['title']['label'] == 'Title'
             assert fields['title']['minLength'] == 2
             assert fields['title']['maxLength'] == 50
@@ -315,7 +335,7 @@ class TestBaseModel(ApplicableTestCase):
             assert fields['weight']['default'] == 50
             assert fields['weight']['type'] == 'float'
             assert fields['weight']['label'] == 'Weight'
-            assert fields['visible']['notNone'] == None
+            assert fields['visible']['notNone'] is None
             assert fields['phone']['label'] == 'Phone'
             assert fields['phone']['patternDescription'] == \
                 'The phone number cannot contain alphabet'
