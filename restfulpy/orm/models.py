@@ -116,8 +116,8 @@ class BaseModel(object):
             'fields': fields
         }
 
-    def update_from_request(self):
-        for column, value in self.extract_data_from_request():
+    def update_from_request(self, strip_value=True):
+        for column, value in self.extract_data_from_request(strip_value):
             setattr(
                 self,
                 column.key[1:] if column.key.startswith('_') else column.key,
@@ -159,7 +159,7 @@ class BaseModel(object):
             yield c
 
     @classmethod
-    def extract_data_from_request(cls):
+    def extract_data_from_request(cls, strip_value=True):
         for c in cls.iter_json_columns(
                 include_protected_columns=True,
                 include_readonly_columns=False
@@ -173,6 +173,8 @@ class BaseModel(object):
                     raise HTTPBadRequest('Invalid attribute')
 
                 value = context.form[param_name]
+                if strip_value is True and isinstance(value, str):
+                    value = value.strip()
 
                 # Ensuring the python type, and ignoring silently if the
                 # python type is not specified
