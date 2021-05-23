@@ -1,3 +1,5 @@
+import signal
+import threading
 import time
 import traceback
 from datetime import datetime
@@ -144,7 +146,7 @@ def worker(statuses={'new'}, filters=None, tries=-1):
 
     while True:
         context['counter'] += 1
-        logger.debug('Trying to pop a task, Counter: %s' % context['counter'])
+
         try:
             task = RestfulpyTask.pop(
                 statuses=statuses,
@@ -162,9 +164,9 @@ def worker(statuses={'new'}, filters=None, tries=-1):
                     return tasks
             time.sleep(settings.worker.gap)
             continue
-        except:
-            logger.error('Error when popping task.')
-            raise
+        except Exception as exp:
+            logger.error(f'Error when popping task. {exp.__doc__}')
+            signal.pthread_kill(threading.get_ident(), signal.SIGKILL)
 
         try:
             task.execute(context)
@@ -173,13 +175,15 @@ def worker(statuses={'new'}, filters=None, tries=-1):
             task.status = 'success'
             task.terminated_at = datetime.utcnow()
 
-        except:
+        except Exception as exp:
             logger.error('Error when executing task: %s' % task.id)
+            logger.error(f'Exception: {exp.__doc__}')
             task.status = 'new'
             task.fail_reason = traceback.format_exc()[-4096:]
 
         finally:
             if isolated_session.is_active:
                 isolated_session.commit()
+
             tasks.append((task.id, task.status))
 
