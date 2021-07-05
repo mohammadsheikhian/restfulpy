@@ -65,8 +65,8 @@ You can sort like this:
 '''
 
 
-@pytest.fixture(scope='function')
-def db():
+@pytest.fixture(scope='function', params=[''])
+def db(request):
     _configuration = '''
     db:
       test_url: postgresql://postgres:postgres@localhost/restfulpy_test
@@ -74,12 +74,14 @@ def db():
     '''
     configure(force=True)
     settings.merge(_configuration)
+    if isinstance(request, str) or request.param != '':
+        settings.merge(request)
 
-    # Overriding the db uri becase this is a test session, so db.test_uri will
+    # Overriding the db uri because this is a test session, so db.test_uri will
     # be used instead of the db.uri
     settings.db.url = settings.db.test_url
 
-    # Drop the previosely created db if exists.
+    # Drop the previously created db if exists.
     with DBManager(url=settings.db.test_url) as m:
         m.drop_database()
         m.create_database()
@@ -89,6 +91,7 @@ def db():
 
     # A session factory to create and store session to close it on tear down
     sessions = []
+
     def _connect(*a, expire_on_commit=False, **kw):
         new_session = session_factory(
             bind=engine,
