@@ -100,14 +100,13 @@ class MuleTask(TimestampMixin, DeclarativeBase):
             raise
 
 
-def worker(statuses={'new'},filters=None, tries=-1):
+def worker(statuses={'new'}, filters=None, tries=-1):
     isolated_session = create_thread_unsafe_session()
     context = {'counter': 0}
     tasks = []
 
     while True:
         context['counter'] += 1
-        logger.debug('Trying to pop a task, Counter: %s' % context['counter'])
         try:
             task = MuleTask.pop(
                 statuses=statuses,
@@ -116,7 +115,6 @@ def worker(statuses={'new'},filters=None, tries=-1):
             )
 
         except TaskPopError as ex:
-            logger.debug('No task to pop: %s' % ex.to_json())
             isolated_session.rollback()
             if tries > -1:
                 tries -= 1
