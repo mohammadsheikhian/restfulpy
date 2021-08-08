@@ -156,7 +156,6 @@ def worker(statuses={'new'}, filters=None, tries=-1):
             assert task is not None
 
         except TaskPopError as ex:
-            logger.debug('No task to pop: %s' % ex.to_json())
             isolated_session.rollback()
             if tries > -1:
                 tries -= 1
