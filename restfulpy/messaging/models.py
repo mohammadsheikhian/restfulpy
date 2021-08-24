@@ -2,7 +2,7 @@ from nanohttp import settings
 from sqlalchemy import Integer, ForeignKey, Unicode
 from sqlalchemy.ext.declarative import declared_attr
 
-from ..orm import Field, FakeJSON,synonym
+from ..orm import Field, FakeJSON, synonym
 from ..taskqueue import RestfulpyTask
 from .providers import create_messenger
 
