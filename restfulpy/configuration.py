@@ -83,6 +83,40 @@ smtp:
   tls: true
   auth: true
   ssl: false
+  
+# Logging stuff
+logging:
+  loggers:
+    default:
+      handlers:
+        - default
+      level: debug
+      formatter: default
+      propagate: true
+      
+    root:
+      level: debug
+      formatter: default
+      
+  handlers:
+    default:
+      level: notset
+      max_bytes: 52428800
+      backup_count: 2
+      formatter: default
+      type: console
+      rotate: time
+      when: s
+      interval: 1
+      filename: /var/log/restfulpy.log
+      
+    console:
+      type: file
+      
+  formatters:
+    default:
+      format: "%%(asctime)s - %%(name)s - %%(levelname)s - %%(message)s"
+      date_format: "%%Y-%%m-%%d %%H:%%M:%%S"
 
 """
 

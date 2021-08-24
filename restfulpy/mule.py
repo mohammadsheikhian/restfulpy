@@ -5,10 +5,13 @@ from nanohttp import settings
 from sqlalchemy import Integer, Enum, Unicode, DateTime, or_, and_
 from sqlalchemy.sql.expression import text
 
-from . import logger
+from .logging_ import get_logger
 from .exceptions import RestfulException
 from .orm import TimestampMixin, DeclarativeBase, Field, DBSession, \
     create_thread_unsafe_session
+
+
+logger = get_logger('taskqueue')
 
 
 class TaskPopError(RestfulException):
