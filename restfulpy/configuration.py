@@ -101,6 +101,7 @@ logging:
   handlers:
     default:
       level: notset
+      filter_level: false
       max_bytes: 52428800
       backup_count: 2
       formatter: default
