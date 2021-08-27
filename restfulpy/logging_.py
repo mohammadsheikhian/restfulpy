@@ -22,6 +22,15 @@ def get_level(name):
     }[name]
 
 
+def get_filter(level):
+    return {
+        'debug': DebugFilter,
+        'info': InfoFilter,
+        'error': ErrorFilter,
+        'critical': CriticalFilter,
+    }[level]
+
+
 def ensure_formatter(name):
     if name not in _formatters:
         formatter_config = settings.logging.formatters.default.copy()
@@ -71,6 +80,10 @@ def ensure_handler(name):
 
         # Attaching newly created formatter to the handler
         handler.setFormatter(ensure_formatter(handler_config.formatter))
+
+        if handler_config.filter_level:
+            handler.addFilter(get_filter(level=handler_config.level)())
+
         _handlers[name] = handler
 
     return _handlers[name]
@@ -150,4 +163,39 @@ def get_logger(logger_name='restfulpy'):
 
 
 logger = get_logger()
+
+
+class InfoFilter(logging.Filter):
+    def filter(self, record):
+        assert isinstance(record, logging.LogRecord)
+        if record.levelno == logging.INFO:
+            return record
+
+
+class DebugFilter(logging.Filter):
+    def filter(self, record):
+        assert isinstance(record, logging.LogRecord)
+        if record.levelno == logging.DEBUG:
+            return record
+
+
+class InfoFilter(logging.Filter):
+    def filter(self, record):
+        assert isinstance(record, logging.LogRecord)
+        if record.levelno == logging.INFO:
+            return record
+
+
+class ErrorFilter(logging.Filter):
+    def filter(self, record):
+        assert isinstance(record, logging.LogRecord)
+        if record.levelno == logging.ERROR:
+            return record
+
+
+class CriticalFilter(logging.Filter):
+    def filter(self, record):
+        assert isinstance(record, logging.LogRecord)
+        if record.levelno == logging.CRITICAL:
+            return record
 
