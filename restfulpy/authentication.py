@@ -74,6 +74,11 @@ class Authenticator:
     refresh_token_key = 'refresh-token'
     token_response_header = 'X-New-JWT-Token'
     identity_response_header = 'X-Identity'
+    is_system_message_key = 'HTTP_IS_SYSTEM_MESSAGE'
+
+    def is_system_message(self):
+        return context.environ.get(self.is_system_message_key) == \
+            settings.jwt.system_message_secret
 
     def create_principal(self, member_id=None, session_id=None, **kwargs):
         raise NotImplementedError()
@@ -145,7 +150,7 @@ class Authenticator:
             self.setup_response_headers(principal)
 
     def verify_token(self, encoded_token):
-        return JWTPrincipal.load(encoded_token)
+        return JWTPrincipal.load(encoded_token, force=self.is_system_message())
 
     def authenticate_request(self):
         if self.token_key not in context.environ:

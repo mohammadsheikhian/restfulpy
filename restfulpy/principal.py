@@ -4,8 +4,15 @@ from nanohttp import settings, context, HTTPForbidden
 
 
 class BaseJWTPrincipal:
+    is_system_message_key = 'HTTP_IS_SYSTEM_MESSAGE'
+
     def __init__(self, payload):
         self.payload = payload
+
+    @classmethod
+    def is_system_message(cls):
+        return context.environ.get(cls.is_system_message_key) == \
+            settings.jwt.system_message_secret
 
     @classmethod
     def create_serializer(cls, force=False, max_age=None):
