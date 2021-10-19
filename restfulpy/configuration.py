@@ -37,6 +37,7 @@ migration:
 
 jwt:
   secret: JWT-SECRET
+  system_message_secret: SYSTEM-MESSAGE-SECRET
   algorithm: HS256
   max_age: 86400  # 24 Hours
   refresh_token:
