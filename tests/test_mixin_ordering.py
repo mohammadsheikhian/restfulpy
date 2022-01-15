@@ -31,7 +31,7 @@ class OrderingObject(OrderingMixin, DeclarativeBase):
 
 
 def test_ordering_mixin(db):
-    session =db()
+    session = db()
 
     for i in range(1, 6):
         obj = OrderingObject(
@@ -59,10 +59,13 @@ def test_ordering_mixin(db):
     # Sort by Synonym Property
     with Context({'QUERY_STRING': 'sort=age'}):
         result = OrderingObject.sort_by_request(query).all()
-        assert result[0].id == 1
-        assert result[-1].id == 5
+        assert result[0].age == 50
+        assert result[1].age == 40
+        assert result[2].age == 30
+        assert result[3].age == 20
+        assert result[4].age == 10
 
-    # Mutiple sort criteria
+    # Multiple sort criteria
     with Context({'QUERY_STRING': 'sort=title,id'}):
         result = OrderingObject.sort_by_request(query).all()
         assert result[0].id == 4
