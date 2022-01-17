@@ -314,6 +314,10 @@ class OrderingMixin:
             for c in sort_exp.split(',')
         ]
 
+        if not(('id', 'asc') in sort_columns or
+               ('id', 'desc') in sort_columns):
+            sort_columns.append(('id', 'desc'))
+
         criteria = cls.create_sort_criteria(sort_columns)
 
         for criterion in criteria:
