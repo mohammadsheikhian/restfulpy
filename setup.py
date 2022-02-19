@@ -18,7 +18,7 @@ dependencies = [
     'appdirs',
     'sqlalchemy <= 1.3.22',
     'alembic',
-    'itsdangerous',
+    'itsdangerous <= 2.0.1',
     'mako',
     'psycopg2-binary',
     'redis',
