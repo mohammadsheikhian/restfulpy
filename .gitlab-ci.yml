@@ -11,7 +11,7 @@ stages:
 test and coverage:
     stage: test coverage
     script:
-        - pytest --cov=restfulpy
+        - pytest --cov=restfulpy --disable-warnings
     artifacts:
         name: $CI_PROJECT_TITLE-$CI_COMMIT_REF_SLUG
         paths:
