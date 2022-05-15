@@ -178,10 +178,11 @@ def worker(statuses={'new'}, filters=None, tries=-1):
             task.terminated_at = datetime.utcnow()
 
         except Exception as exp:
-            logger.error('Error when executing task: %s' % task.id)
-            logger.error(f'Exception: {exp.__doc__}')
             task.status = 'new'
-            task.fail_reason = traceback.format_exc()[-4096:]
+            if task.fail_reason != traceback.format_exc()[-4096:]:
+                task.fail_reason = traceback.format_exc()[-4096:]
+                logger.critical('Error when executing task: %s' % task.id)
+                logger.critical(f'Exception: {exp.__doc__}')
 
         finally:
             if isolated_session.is_active:
