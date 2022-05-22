@@ -28,10 +28,12 @@ class SQLError(HTTPStatus):
 
         if not hasattr(ex, 'orig') or ex.orig is None or \
                 not hasattr(ex.orig, 'pgcode'):
-            return '500 Internal server error'
+            return f'500 Internal server error {ex.__doc__}'
 
         error_code = ex.orig.pgcode
-        status_text = cls.postgresql_errors.get(error_code)
+        status_text = ex.__doc__
+        if error_code is not None:
+            status_text = cls.postgresql_errors.get(error_code)
         return f'{cls.statuses.get(error_code, 500)} {status_text} ' \
                f'{ex.orig.pgerror}'
 
