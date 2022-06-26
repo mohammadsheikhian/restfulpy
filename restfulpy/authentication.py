@@ -6,6 +6,7 @@ import ujson
 import user_agents
 from nanohttp import context, HTTPBadRequest, settings
 
+from restfulpy.logging_ import logger
 from restfulpy.principal import JWTPrincipal, JWTRefreshToken
 
 
@@ -249,6 +250,7 @@ class StatefulAuthenticator(Authenticator):
     session_info_key = 'auth:sessions:%s:info'
     remote_address_key = 'REMOTE_ADDR'
     agent_key = 'HTTP_USER_AGENT'
+    x_forwarded_for = 'HTTP_X_FORWARDED_FOR'
 
     @staticmethod
     def create_blocking_redis_client():
@@ -298,9 +300,9 @@ class StatefulAuthenticator(Authenticator):
         os = None
         agent = None
 
-        if self.remote_address_key in context.environ \
-                and context.environ[self.remote_address_key]:
-            remote_address = context.environ[self.remote_address_key]
+        if self.x_forwarded_for in context.environ \
+                and context.environ[self.x_forwarded_for]:
+            remote_address = context.environ[self.x_forwarded_for]
 
         if self.agent_key in context.environ:
             agent_string = context.environ[self.agent_key]
