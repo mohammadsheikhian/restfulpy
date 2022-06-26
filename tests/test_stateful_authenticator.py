@@ -210,14 +210,14 @@ class TestStatefulAuthenticator(ApplicableTestCase):
 session_info_test_cases = [
     {
         'environment': {
-            'REMOTE_ADDR': '127.0.0.1',
+            'REMOTE_ADDR': 'NA',
             'HTTP_USER_AGENT': \
                 'Mozilla/5.0 (iPhone; CPU iPhone OS 5_1 like Mac OS X) '
                 'AppleWebKit/534.46 (KHTML, like Gecko) Version/5.1 '
                 'Mobile/9B179 Safari/7534.48.3 RestfulpyClient-js/1.2.3 (My '
                 'App; test-name; 1.4.5-beta78; fa-IR; some; extra; info)'
         },
-        'expected_remote_address': '127.0.0.1',
+        'expected_remote_address': 'NA',
         'expected_machine': 'iPhone',
         'expected_os': 'iOS 5.1',
         'expected_agent': 'Mobile Safari 5.1',
@@ -225,12 +225,12 @@ session_info_test_cases = [
     },
     {
         'environment': {
-            'REMOTE_ADDR': '185.87.34.23',
+            'REMOTE_ADDR': 'NA',
             'HTTP_USER_AGENT': \
                 'Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; '
                 'Trident/5.0) RestfulpyClient-custom/4.5.6 (A; B; C)'
         },
-        'expected_remote_address': '185.87.34.23',
+        'expected_remote_address': 'NA',
         'expected_machine': 'PC',
         'expected_os': 'Windows 7',
         'expected_agent': 'IE 9.0',
@@ -238,10 +238,10 @@ session_info_test_cases = [
     },
     {
         'environment': {
-            'REMOTE_ADDR': '172.16.0.111',
+            'REMOTE_ADDR': 'NA',
             'HTTP_USER_AGENT': ''
         },
-        'expected_remote_address': '172.16.0.111',
+        'expected_remote_address': 'NA',
         'expected_machine': 'Other',
         'expected_os': 'Other',
         'expected_agent': 'Other',
@@ -249,7 +249,7 @@ session_info_test_cases = [
     },
     {
         'environment': {},
-        'expected_remote_address': '127.0.0.1',
+        'expected_remote_address': 'NA',
         'expected_machine': 'Other',
         'expected_os': 'Other',
         'expected_agent': 'Other',
