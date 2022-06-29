@@ -45,10 +45,12 @@ class Application(NanohttpApplication):
     def _handle_exception(self, ex, start_response):
         if isinstance(ex, SQLAlchemyError):
             ex = SQLError(ex)
-            self.__logger__.error(ex)
+
         if not isinstance(ex, HTTPStatus):
+            extra_information = ex.__doc__
             ex = HTTPInternalServerError('Internal server error')
-            self.__logger__.error(ex)
+            ex.extra_information = extra_information
+
         return super()._handle_exception(ex, start_response)
 
     def configure(self, filename=None, context=None, force=False):

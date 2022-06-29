@@ -56,10 +56,9 @@ class TestSqlExceptions(ApplicableTestCase):
             assert response.json['title'] == 'test'
 
             when('Posting gain to raise a unique_violation sql error')
-            assert status == 409
+            assert status == '409 Conflict'
 
     def test_invalid_sql_error(self):
         assert SQLError.map_exception(ValueError()) == \
-            '500 Internal server error Inappropriate argument value '\
-            '(of correct type).'
+            '500 Internal server error'
 
