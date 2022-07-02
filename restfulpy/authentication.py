@@ -368,10 +368,11 @@ class StatefulAuthenticator(Authenticator):
         self.update_session_info(principal.session_id)
 
     def update_session_info(self, session_id):
-        self.redis.set(
-            self.get_session_info_key(session_id),
-            ujson.dumps(self.extract_agent_info())
-        )
+        if not self.is_system_message():
+            self.redis.set(
+                self.get_session_info_key(session_id),
+                ujson.dumps(self.extract_agent_info())
+            )
 
     def get_session_info(self, session_id):
         info = self.redis.get(self.get_session_info_key(session_id))
