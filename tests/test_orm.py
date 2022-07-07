@@ -263,13 +263,13 @@ def test_model(db):
                     'comments': [],
                     'tagTime': '01:01:01',
                     'createdAt':'2021-01-18T07:41:49.118552',
-                    'modifiedAt': None,
+                    'autoModifiedAt': None,
                 }
             ]
         }.items() == tag1_dict.items()
 
         assert 'createdAt' in post1_dict
-        assert 'modifiedAt' in post1_dict
+        assert 'autoModifiedAt' in post1_dict
 
         author1_dict = author1.to_dict()
         assert 'fullName' not in author1_dict
