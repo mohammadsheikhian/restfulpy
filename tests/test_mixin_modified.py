@@ -34,36 +34,36 @@ def test_modified_mixin(db):
     session.add(excludeless_instance)
     session.commit()
 
-    assert instance.modified_at is None
+    assert instance.auto_modified_at is None
     assert instance.created_at is not None
     assert instance.last_modification_time == instance.created_at
 
     instance = session.query(ModificationCheckingModel).one()
-    assert instance.modified_at is None
+    assert instance.auto_modified_at is None
     assert instance.created_at is not None
     assert instance.last_modification_time == instance.created_at
 
     instance.age = 2
     session.commit()
-    assert instance.modified_at is None
+    assert instance.auto_modified_at is None
     assert instance.created_at is not None
     assert instance.last_modification_time == instance.created_at
 
     instance.title = 'Edited title'
     session.commit()
-    assert instance.modified_at is not None
+    assert instance.auto_modified_at is not None
     assert instance.created_at is not None
-    assert instance.last_modification_time == instance.modified_at
+    assert instance.last_modification_time == instance.auto_modified_at
 
     instance = session.query(ModificationCheckingModel).one()
-    assert instance.modified_at is not None
+    assert instance.auto_modified_at is not None
     assert instance.created_at is not None
-    assert instance.last_modification_time == instance.modified_at
+    assert instance.last_modification_time == instance.auto_modified_at
 
     excludeless_instance.age = 3
     session.commit()
-    assert excludeless_instance.modified_at is not None
+    assert excludeless_instance.auto_modified_at is not None
     assert excludeless_instance.created_at is not None
     assert excludeless_instance.last_modification_time == \
-        excludeless_instance.modified_at
+        excludeless_instance.auto_modified_at
 

@@ -36,24 +36,24 @@ class ModifiedMixin(TimestampMixin):
 
     __exclude__ = set()
 
-    modified_at = Field(
+    auto_modified_at = Field(
         DateTime,
         nullable=True,
-        json='modifiedAt',
+        json='autoModifiedAt',
         readonly=True,
-        label='Modified At'
+        label='Auto Modified At'
     )
 
     @property
     def last_modification_time(self):
-        return self.modified_at or self.created_at
+        return self.auto_modified_at or self.created_at
 
     @staticmethod
     def before_update(mapper, connection, target):
         if not target.object.__exclude__.issubset(target.unmodified):
             return
 
-        target.object.modified_at = datetime.utcnow()
+        target.object.auto_modified_at = datetime.utcnow()
 
     @classmethod
     def __declare_last__(cls):
