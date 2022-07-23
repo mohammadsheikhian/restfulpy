@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from ..helpers import to_camel_case
 
 
@@ -27,10 +29,12 @@ class FieldInfo:
             json_value = v[0] if isinstance(v, tuple) else v
             if isinstance(json_value, type):
                 json_value = json_value.__name__
+            elif isinstance(json_value, datetime):
+                json_value = json_value.isoformat()
 
             result[json_key] = json_value
 
-        result['type'] = result.pop('type_')
+        result['type'] = str(result.pop('type_'))
         return result
 
 # Commented because not used

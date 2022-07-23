@@ -25,7 +25,7 @@ dependencies = [
     'pyyaml',
     'ua-parser',
     'user-agents',
-    'pycrypto',
+    'pycryptodome',
     'python-dateutil',
 
     # Testing
