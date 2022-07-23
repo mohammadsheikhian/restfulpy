@@ -331,7 +331,7 @@ class StatefulAuthenticator(Authenticator):
         self.redis.sadd(self.get_member_sessions_key(member_id), session_id)
         self.redis.set(
             self.get_session_info_key(session_id),
-            ujson.dumps(self.extract_agent_info())
+            ujson.dumps(self.extract_agent_info(), reject_bytes=False)
         )
 
     def unregister_session(self, session_id=None):
@@ -371,7 +371,7 @@ class StatefulAuthenticator(Authenticator):
         if not self.is_system_message():
             self.redis.set(
                 self.get_session_info_key(session_id),
-                ujson.dumps(self.extract_agent_info())
+                ujson.dumps(self.extract_agent_info(), reject_bytes=False)
             )
 
     def get_session_info(self, session_id):
