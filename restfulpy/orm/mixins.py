@@ -1,9 +1,9 @@
 import re
 from datetime import datetime
 
-from nanohttp import context, HTTPBadRequest, settings
+from nanohttp import context, HTTPBadRequest
 from sqlalchemy import DateTime, between, desc
-from sqlalchemy.events import event
+from sqlalchemy.event import listen
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.sql.expression import nullslast, nullsfirst
 
@@ -57,7 +57,7 @@ class ModifiedMixin(TimestampMixin):
 
     @classmethod
     def __declare_last__(cls):
-        event.listen(cls, 'before_update', cls.before_update, raw=True)
+        listen(cls, 'before_update', cls.before_update, raw=True)
 
 
 class SoftDeleteMixin:
@@ -97,7 +97,7 @@ class SoftDeleteMixin:
 
     @classmethod
     def __declare_last__(cls):
-        event.listen(cls, 'before_delete', cls.before_delete)
+        listen(cls, 'before_delete', cls.before_delete)
 
     @classmethod
     def filter_deleted(cls, query):

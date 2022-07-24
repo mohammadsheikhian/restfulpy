@@ -4,6 +4,7 @@ from sqlalchemy.orm import relationship as sa_relationship, \
 
 
 class Field(Column):
+    inherit_cache = True
 
     def __init__(self, *args, json=None, readonly=None, max_length=None,
                  min_length=None, maximum=None, minimum=None, protected=None,
