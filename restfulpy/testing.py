@@ -75,7 +75,7 @@ def db(request):
     configure(force=True)
     settings.merge(_configuration)
     if isinstance(request, str) or request.param != '':
-        settings.merge(request)
+        settings.merge(request.param)
 
     # Overriding the db uri because this is a test session, so db.test_uri will
     # be used instead of the db.uri
