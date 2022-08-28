@@ -90,6 +90,28 @@ class CleanupSubSubCommand(SubCommand):
         DBSession.commit()
 
 
+class RenewSubSubCommand(SubCommand):
+    __command__ = 'renew'
+    __help__ = 'Renew in-progress tasks'
+    __arguments__ = [
+        Argument(
+            '-g',
+            '--gap',
+            type=int,
+            default=None,
+            help='Gap between run next task.',
+        ),
+    ]
+
+    def __call__(self, args):
+        from restfulpy.taskqueue import renew
+
+        if args.gap is not None:
+            settings.renew_worker.merge({'gap': args.gap})
+
+        renew()
+
+
 class WorkerSubCommand(SubCommand):
     __command__ = 'worker'
     __help__ = 'Task queue administration'
@@ -104,5 +126,6 @@ class WorkerSubCommand(SubCommand):
         ),
         StartSubSubCommand,
         CleanupSubSubCommand,
+        RenewSubSubCommand,
     ]
 

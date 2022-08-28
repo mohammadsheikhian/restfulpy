@@ -77,10 +77,33 @@ class StartSubSubCommand(SubCommand):
         sys.exit(signal_number)
 
 
+class RenewSubSubCommand(SubCommand):
+    __command__ = 'renew'
+    __help__ = 'Renew in-progress tasks'
+    __arguments__ = [
+        Argument(
+            '-g',
+            '--gap',
+            type=int,
+            default=None,
+            help='Gap between run next task.',
+        ),
+    ]
+
+    def __call__(self, args):
+        from restfulpy.mule import renew
+
+        if args.gap is not None:
+            settings.renew_mule_worker.merge({'gap': args.gap})
+
+        renew()
+
+
 class MuleSubCommand(SubCommand):
     __command__ = 'mule'
     __help__ = 'Jobs queue administration'
     __arguments__ = [
         StartSubSubCommand,
+        RenewSubSubCommand,
     ]
 

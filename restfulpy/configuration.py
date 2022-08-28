@@ -71,6 +71,14 @@ worker:
   gap: .5
   number_of_threads: 1
 
+renew_worker:
+  time_range: 5 # Minutes
+  gap: 0.5
+
+renew_mule_worker:
+  time_range: 5 # Minutes
+  gap: 0.5
+
 jobs:
   interval: .5 # Seconds
   number_of_threads: 1

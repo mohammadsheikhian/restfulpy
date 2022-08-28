@@ -1,8 +1,11 @@
+import signal
+import threading
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from nanohttp import settings
 from sqlalchemy import Integer, Enum, Unicode, DateTime, or_, and_
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.sql.expression import text
 
 from .logging_ import get_logger
@@ -38,6 +41,7 @@ class MuleTask(TimestampMixin, DeclarativeBase):
     )
     expired_at = Field(DateTime, nullable=True, json='expiredAt')
     terminated_at = Field(DateTime, nullable=True, json='terminatedAt')
+    started_at = Field(DateTime, nullable=True, json='startedAt')
     type = Field(Unicode(50))
 
     __mapper_args__ = {
@@ -79,7 +83,10 @@ class MuleTask(TimestampMixin, DeclarativeBase):
         cte = find_query.cte('find_query')
         update_query = MuleTask.__table__.update() \
             .where(MuleTask.id == cte.c.id) \
-            .values(status='in-progress') \
+            .values(
+                status='in-progress',
+                started_at=datetime.utcnow(),
+            ) \
             .returning(MuleTask.__table__.c.id)
 
         task_id = session.execute(update_query).fetchone()
@@ -138,7 +145,46 @@ def worker(statuses={'new'}, filters=None, tries=-1):
             task.status = 'failed'
 
         finally:
-            if isolated_session.is_active:
-                isolated_session.commit()
-            tasks.append((task.id, task.status))
+            try:
+                if isolated_session.is_active:
+                    isolated_session.commit()
+                tasks.append((task.id, task.status))
+            except Exception as exp:
+                logger.critical(exp, exc_info=True)
+                signal.pthread_kill(threading.get_ident(), signal.SIGKILL)
+
+
+def renew(session=DBSession):
+    while True:
+        renew_time_range = datetime.utcnow() - \
+            timedelta(minutes=settings.renew_mule_worker.time_range)
+        task_id = None
+
+        try:
+            task = session.query(MuleTask) \
+                .with_for_update() \
+                .filter(MuleTask.status == 'in-progress') \
+                .filter(MuleTask.started_at <= renew_time_range) \
+                .order_by(MuleTask.id) \
+                .first()
+            if task is None:
+                time.sleep(settings.renew_mule_worker.gap)
+                continue
+
+            task_id = task.id
+            task.status = 'new'
+            task.started_at = None
+            task.terminated_at = None
+            session.commit()
+            logger.info(f'Task: {task_id} successfully renewed.')
+
+        except OperationalError as exp:
+            logger.critical(exp, exc_info=True)
+            break
+
+        except Exception as exp:
+            if task_id is not None:
+                logger.error(f'Error when renewing task: {task_id}')
+            logger.error(exp, exc_info=True)
+            session.rollback()
 

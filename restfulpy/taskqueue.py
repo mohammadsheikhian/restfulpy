@@ -2,10 +2,11 @@ import signal
 import threading
 import time
 import traceback
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from nanohttp import settings
 from sqlalchemy import Integer, Enum, Unicode, DateTime
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.sql.expression import text
 
 from .logging_ import get_logger
@@ -76,7 +77,10 @@ class RestfulpyTask(TimestampMixin, DeclarativeBase):
 
         update_query = RestfulpyTask.__table__.update() \
             .where(RestfulpyTask.id == cte.c.id) \
-            .values(status='in-progress') \
+            .values(
+                status='in-progress',
+                started_at=datetime.utcnow(),
+            ) \
             .returning(RestfulpyTask.__table__.c.id)
 
         task_id = session.execute(update_query).fetchone()
@@ -121,7 +125,7 @@ class RestfulpyTask(TimestampMixin, DeclarativeBase):
             session.query(task_class) \
                 .filter(task_class.status == 'success') \
                 .delete()
-            
+
         session.commit()
         session.expire_all()
         session.query(RestfulpyTask) \
@@ -185,8 +189,47 @@ def worker(statuses={'new'}, filters=None, tries=-1):
                 logger.critical(f'Exception: {exp.__doc__}')
 
         finally:
-            if isolated_session.is_active:
-                isolated_session.commit()
+            try:
+                if isolated_session.is_active:
+                    isolated_session.commit()
 
-            tasks.append((task.id, task.status))
+                tasks.append((task.id, task.status))
+            except Exception as exp:
+                logger.critical(exp, exc_info=True)
+                signal.pthread_kill(threading.get_ident(), signal.SIGKILL)
+
+
+def renew(session=DBSession):
+    while True:
+        renew_time_range = datetime.utcnow() - \
+            timedelta(minutes=settings.renew_worker.time_range)
+        task_id = None
+
+        try:
+            task = session.query(RestfulpyTask) \
+                .with_for_update() \
+                .filter(RestfulpyTask.status == 'in-progress') \
+                .filter(RestfulpyTask.started_at <= renew_time_range) \
+                .order_by(RestfulpyTask.id) \
+                .first()
+            if task is None:
+                time.sleep(settings.renew_worker.gap)
+                continue
+
+            task_id = task.id
+            task.status = 'new'
+            task.started_at = None
+            task.terminated_at = None
+            session.commit()
+            logger.info(f'Task: {task_id} successfully renewed.')
+
+        except OperationalError as exp:
+            logger.critical(exp, exc_info=True)
+            break
+
+        except Exception as exp:
+            if task_id is not None:
+                logger.error(f'Error when renewing task: {task_id}')
+            logger.error(exp, exc_info=True)
+            session.rollback()
 
