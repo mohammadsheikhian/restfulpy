@@ -1,6 +1,7 @@
 import signal
 import threading
 import time
+import traceback
 from datetime import datetime, timedelta
 
 from nanohttp import settings
@@ -40,6 +41,7 @@ class MuleTask(TimestampMixin, DeclarativeBase):
         nullable=True, json='status'
     )
     expired_at = Field(DateTime, nullable=True, json='expiredAt')
+    fail_reason = Field(Unicode(4096), nullable=True, json='reason')
     terminated_at = Field(DateTime, nullable=True, json='terminatedAt')
     started_at = Field(DateTime, nullable=True, json='startedAt')
     type = Field(Unicode(50))
@@ -140,9 +142,12 @@ def worker(statuses={'new'}, filters=None, tries=-1):
             task.status = 'success'
             task.terminated_at = datetime.utcnow()
 
-        except:
-            logger.error('Error when executing task: %s' % task.id)
+        except Exception as exp:
             task.status = 'failed'
+            if task.fail_reason != traceback.format_exc()[-4096:]:
+                task.fail_reason = traceback.format_exc()[-4096:]
+                logger.critical('Error when executing task: %s' % task.id)
+                logger.critical(f'Exception: {exp.__doc__}')
 
         finally:
             try:
