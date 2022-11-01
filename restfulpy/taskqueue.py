@@ -185,8 +185,12 @@ def worker(statuses={'new'}, filters=None, tries=-1):
             task.status = 'new'
             if task.fail_reason != traceback.format_exc()[-4096:]:
                 task.fail_reason = traceback.format_exc()[-4096:]
-                logger.critical('Error when executing task: %s' % task.id)
-                logger.critical(f'Exception: {exp.__doc__}')
+                logger.critical(dict(
+                    message=f'Error when executing task: {task.id}',
+                    taskId=task.id,
+                    exception=exp.__doc__,
+                    failReason=task.fail_reason,
+                ))
 
         finally:
             try:
