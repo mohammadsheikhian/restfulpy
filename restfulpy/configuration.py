@@ -70,6 +70,7 @@ authentication:
 worker:
   gap: .5
   number_of_threads: 1
+  cleanup_time_limitation: 10 # Days
 
 renew_worker:
   time_range: 5 # Minutes

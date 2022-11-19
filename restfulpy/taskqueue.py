@@ -104,33 +104,21 @@ class RestfulpyTask(TimestampMixin, DeclarativeBase):
             raise
 
     @classmethod
-    def cleanup(cls, session=DBSession, filters=None,
-                statuses=['in-progress']):
-        cleanup_query = session.query(RestfulpyTask) \
-            .filter(RestfulpyTask.status.in_(statuses))
-
-        if filters is not None:
-            cleanup_query = cleanup_query.filter(
-                text(filters) if isinstance(filters, str) else filters
-            )
-
-        cleanup_query.with_for_update() \
-            .update({
-                'status': 'new',
-                'started_at': None,
-                'terminated_at': None
-            }, synchronize_session='fetch')
+    def cleanup(cls, time_limitation, session=DBSession):
+        to_clean_ids = session.query(RestfulpyTask.id) \
+            .filter(RestfulpyTask.created_at < time_limitation) \
+            .filter(RestfulpyTask.status == 'success')
 
         for task_class in RestfulpyTask.__subclasses__():
             session.query(task_class) \
-                .filter(task_class.status == 'success') \
-                .delete()
+                .filter(task_class.id.in_(to_clean_ids)) \
+                .delete(synchronize_session=False)
+            session.commit()
 
-        session.commit()
-        session.expire_all()
         session.query(RestfulpyTask) \
-            .filter(RestfulpyTask.status == 'success') \
-            .delete()
+            .filter(RestfulpyTask.id.in_(to_clean_ids)) \
+            .delete(synchronize_session=False)
+        session.commit()
 
     @classmethod
     def reset_status(cls, task_id, session=DBSession,

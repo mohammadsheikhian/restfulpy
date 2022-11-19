@@ -1,3 +1,4 @@
+from datetime import datetime
 import threading
 
 from sqlalchemy import Integer
@@ -101,7 +102,7 @@ def test_worker(db):
     assert len(tasks) == 0
 
     # Cleanup all tasks
-    RestfulpyTask.cleanup(session, statuses=('in-progress', 'failed'))
+    RestfulpyTask.cleanup(datetime.utcnow(), session)
     session.commit()
 
     # Doing all remaining tasks

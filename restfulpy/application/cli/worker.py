@@ -1,6 +1,7 @@
 import signal
 import sys
 import threading
+from datetime import datetime, timedelta
 
 from easycli import SubCommand, Argument
 from nanohttp import settings
@@ -80,13 +81,25 @@ class StartSubSubCommand(SubCommand):
 
 class CleanupSubSubCommand(SubCommand):
     __command__ = 'cleanup'
-    __help__ = 'Clean database before starting worker processes'
+    __help__ = 'Cleanup database, Delete success tasks'
+    __arguments__ = [
+        Argument(
+            '-d',
+            '--days',
+            default=None,
+            type=int,
+            help='The number of days you want to clear previous tasks',
+        ),
+    ]
 
     def __call__(self, args):
         from restfulpy.orm import DBSession
         from restfulpy.taskqueue import RestfulpyTask
 
-        RestfulpyTask.cleanup(DBSession, filters=args.filter)
+        days = args.days or settings.worker.cleanup_time_limitation
+        time_limitation = datetime.utcnow() - timedelta(days=days)
+
+        RestfulpyTask.cleanup(time_limitation, DBSession)
         DBSession.commit()
 
 
