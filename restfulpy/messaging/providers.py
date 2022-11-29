@@ -6,6 +6,8 @@ from os.path import basename
 
 from mako.lookup import TemplateLookup
 from nanohttp import settings, LazyAttribute
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
 
 from restfulpy.helpers import construct_class_by_name
 
@@ -85,6 +87,27 @@ class SMTPProvider(Messenger):
 
         smtp_server.send_message(msg)
         smtp_server.quit()
+
+
+class SendGridProvider(Messenger):
+
+    def send(self, to, subject, body, cc=None, bcc=None,
+             template_filename=None, from_=None, attachments=None):
+        """
+        Sending messages with sendgrid
+        The sender's email (default sender) in the configuration file
+        should be a verified email
+        """
+
+        body = self.render_body(body, template_filename)
+        message = Mail(
+            from_email=from_,
+            to_emails=to,
+            subject=subject,
+            html_content=body,
+        )
+        sendgrid = SendGridAPIClient(settings.messaging.api_key)
+        sendgrid.send(message)
 
 
 class ConsoleMessenger(Messenger):

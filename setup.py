@@ -23,6 +23,7 @@ dependencies = [
     'psycopg2-binary',
     'redis',
     'pyyaml',
+    'sendgrid',
     'ua-parser',
     'user-agents',
     'pycryptodome',

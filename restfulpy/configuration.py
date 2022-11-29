@@ -51,11 +51,13 @@ jwt:
 
 messaging:
   # default_messenger: restfulpy.messaging.providers.SMTPProvider
+  # default_messenger: restfulpy.messaging.providers.SendGridProvider
   default_messenger: restfulpy.messaging.ConsoleMessenger
   default_sender: restfulpy
   mako_modules_directory:
   template_dirs:
     - %(restfulpy_root)s/messaging/templates
+  api_key: API_KEY
 
 templates:
   directories: []
