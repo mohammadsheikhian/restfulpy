@@ -99,7 +99,7 @@ class CreateDatabaseSchemaSubSubCommand(SubCommand):
 
 class DatabaseSubCommand(SubCommand):
     __command__ = 'db'
-    __help__ = 'Database administrationn'
+    __help__ = 'Database administration'
     __arguments__ = [
         CreateDatabaseSchemaSubSubCommand,
         BasedataSubSubCommand,

@@ -8,7 +8,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from ..configuration import configure
 from ..cryptography import AESCipher
 from ..exceptions import SQLError
-from ..orm import init_model, create_engine, DBSession
+from ..orm import init_model, create_engine, DBSession, MasterDBSession
 from .cli.main import EntryPoint
 from ..logging_ import get_logger
 
@@ -104,6 +104,7 @@ class Application(NanohttpApplication):
 
     def end_response(self):
         DBSession.remove()
+        MasterDBSession.remove()
 
     def insert_basedata(self, args=None):
         raise NotImplementedError()

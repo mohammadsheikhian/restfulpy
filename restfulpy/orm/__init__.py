@@ -1,42 +1,117 @@
-
 import functools
 from os.path import exists
 
 from nanohttp import settings, context
 from sqlalchemy import create_engine as sa_create_engine, inspect
-from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.orm import scoped_session, sessionmaker, Session
 from sqlalchemy.sql.schema import MetaData
 from sqlalchemy.ext.declarative import declarative_base
 from alembic import config, command
 
 from .field import Field, relationship, composite, synonym
 from .metadata import MetadataField
+from .models import BaseModel
+from .fulltext_search import to_tsvector, fts_escape
+from .types import FakeJSON
 from .mixins import ModifiedMixin, SoftDeleteMixin, TimestampMixin, \
     ActivationMixin, PaginationMixin, FilteringMixin, OrderingMixin, \
     ApproveRequiredMixin, FullTextSearchMixin, AutoActivationMixin, \
     DeactivationMixin
-from .models import BaseModel
-from .fulltext_search import to_tsvector, fts_escape
-from .types import FakeJSON
+from ..helpers import connection_string_redis, generate_shard_key
+from ..logging_ import logger
+
+
+engines = {}
+
+
+def get_engine_by_shard_key(shard_key):
+    global engines
+    engine = engines.get(shard_key)
+    if engine is None:
+        _shard_key = generate_shard_key(shard_key)
+        _remote = connection_string_redis().get(_shard_key).decode()
+        process_name = settings.context.get('process_name')
+        connection_string = f'{_remote}{process_name}_{shard_key}'
+
+        engine = create_engine(connection_string)
+        engines[shard_key] = engine
+    return engine
+
+
+class RoutingSession(Session):
+    def get_bind(
+            self,
+            mapper=None,
+            clause=None,
+            bind=None,
+            _sa_skip_events=None,
+            _sa_skip_for_implicit_returning=False,
+    ):
+        engine = None
+        shard_key = None
+
+        try:
+            if bind is not None:
+                engine = bind
+
+            elif not settings.is_database_sharding:
+                # return super(RoutingSession, self).get_bind()
+                # We should use the master session in this case
+                engine = super(RoutingSession, self).get_bind()
+
+            elif hasattr(context, 'shard_key'):
+                shard_key = context.shard_key
+
+            if shard_key is not None:
+                shard_key = str(shard_key)
+                engine = get_engine_by_shard_key(shard_key)
+
+        except Exception as exc:
+            logger.critical(exc)
+
+        finally:
+            if not engine:
+                raise Exception('Can\'t bind session without shard key')
+
+            return engine
+
 
 # Global session manager: DBSession() returns the Thread-local
 # session object appropriate for the current web request.
-session_factory = sessionmaker(
+sharded_session_factory = sessionmaker(
+    class_=RoutingSession,
+    bind=None,
     autoflush=False,
     autocommit=False,
     expire_on_commit=True,
-    twophase=False)
+    twophase=False,
+)
+DBSession = scoped_session(sharded_session_factory)
 
-DBSession = scoped_session(session_factory)
+
+# Global session manager: DBSession() returns the Thread-local
+# session object appropriate for the current web request.
+master_session_factory = sessionmaker(
+    autoflush=False,
+    autocommit=False,
+    expire_on_commit=True,
+    twophase=False,
+)
+MasterDBSession = scoped_session(master_session_factory)
+
 
 # Global metadata.
 metadata = MetaData()
+
 
 DeclarativeBase = declarative_base(cls=BaseModel, metadata=metadata)
 
 
 def create_engine(url=None, echo=None):
-    return sa_create_engine(url or settings.db.url, echo=echo or settings.db.echo)
+    return sa_create_engine(
+        url or settings.db.url,
+        echo=echo or settings.db.echo
+    )
 
 
 def init_model(engine):
@@ -45,13 +120,15 @@ def init_model(engine):
     :param engine: SqlAlchemy engine to bind the session
     :return:
     """
+    MasterDBSession.remove()
+    MasterDBSession.configure(bind=engine)
+
     DBSession.remove()
     DBSession.configure(bind=engine)
 
 
-def setup_schema(session=None):
-    session = session or DBSession
-    engine = session.bind
+def setup_schema(engine=None):
+    engine = engine or DBSession.bind
     inspector = inspect(engine)
     table_names = inspector.get_table_names()
     has_alembic_version = True if 'alembic_version' in table_names else False
@@ -73,7 +150,7 @@ def setup_schema(session=None):
 
 
 def create_thread_unsafe_session():
-    return session_factory()
+    return sharded_session_factory()
 
 
 def commit(func):
@@ -92,8 +169,8 @@ def commit(func):
             return result
 
         except Exception as ex:
-            # Actualy 200 <= status <= 399 is not an exception and commit must
-            # be occure.
+            # Actually 200 <= status <= 399 is not an exception and commit must
+            # be occurring.
             if hasattr(ex, 'status') and '200' <= ex.status < '400':
                 DBSession.commit()
                 raise
@@ -102,4 +179,3 @@ def commit(func):
             raise
 
     return wrapper
-

@@ -1,6 +1,5 @@
 import signal
 import sys
-import threading
 
 from easycli import SubCommand, Argument
 from nanohttp import settings
@@ -15,7 +14,7 @@ class StartSubSubCommand(SubCommand):
             '--query-interval',
             type=int,
             default=None,
-            help='Gap between run next task(secend).',
+            help='Gap between run next task(second).',
         ),
         Argument(
             '-s',
@@ -23,13 +22,6 @@ class StartSubSubCommand(SubCommand):
             default=[],
             action='append',
             help='Task status to process',
-        ),
-        Argument(
-            '-n',
-            '--number-of-threads',
-            type=int,
-            default=None,
-            help='Number of working threads',
         ),
     ]
 
@@ -51,22 +43,8 @@ class StartSubSubCommand(SubCommand):
         )
         print('Tracking task status(es): %s' % ','.join(args.status))
 
-        number_of_threads = \
-            args.number_of_threads or settings.jobs.number_of_threads
-        for i in range(number_of_threads):
-            t = threading.Thread(
-                    target=worker,
-                    name='restfulpy-worker-thread-%s' % i,
-                    daemon=True,
-                    kwargs=dict(
-                        statuses=args.status,
-                    )
-                )
-            t.start()
-
-        print('Worker started with %d threads' % number_of_threads)
+        worker(statuses=args.status)
         print('Press Ctrl+C to terminate worker')
-        signal.pause()
 
     @staticmethod
     def kill_signal_handler(signal_number, frame):

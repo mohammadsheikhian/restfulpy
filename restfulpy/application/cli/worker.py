@@ -1,6 +1,5 @@
 import signal
 import sys
-import threading
 from datetime import datetime, timedelta
 
 from easycli import SubCommand, Argument
@@ -25,13 +24,6 @@ class StartSubSubCommand(SubCommand):
             action='append',
             help='Task status to process',
         ),
-        Argument(
-            '-n',
-            '--number-of-threads',
-            type=int,
-            default=None,
-            help='Number of working threads',
-        ),
     ]
 
     def __call__(self, args):
@@ -52,23 +44,8 @@ class StartSubSubCommand(SubCommand):
         )
         print('Tracking task status(es): %s' % ','.join(args.status))
 
-        number_of_threads = \
-            args.number_of_threads or settings.worker.number_of_threads
-        for i in range(number_of_threads):
-            t = threading.Thread(
-                    target=worker,
-                    name='restfulpy-worker-thread-%s' % i,
-                    daemon=True,
-                    kwargs=dict(
-                        statuses=args.status,
-                        filters=args.filter
-                    )
-                )
-            t.start()
-
-        print('Worker started with %d threads' % number_of_threads)
+        worker(statuses=args.status, filters=args.filter)
         print('Press Ctrl+C to terminate worker')
-        signal.pause()
 
     @staticmethod
     def kill_signal_handler(signal_number, frame):

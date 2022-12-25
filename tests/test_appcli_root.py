@@ -40,7 +40,7 @@ optional arguments:
 Sub commands:
   {configuration,db,jwt,migrate,worker,mule,completion}
     configuration       Configuration tools
-    db                  Database administrationn
+    db                  Database administration
     jwt                 JWT management
     migrate             Executes the alembic command
     worker              Task queue administration

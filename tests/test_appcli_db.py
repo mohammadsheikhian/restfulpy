@@ -1,5 +1,4 @@
 from bddcli import Given, stderr, Application, when, given, status
-from nanohttp import settings
 from sqlalchemy import Integer, Unicode
 
 from restfulpy import Application as RestfulpyApplication
@@ -43,7 +42,6 @@ app = Application(
     'foo',
     'tests.test_appcli_db:foo_main'
 )
-
 
 
 class TestDatabaseAdministrationCommandLine:
@@ -134,6 +132,6 @@ class TestDatabaseAdministrationCommandLine:
                 assert c.fetchone()[0] == 1
 
 
-if __name__ == '__main__': # pragma: no cover
+if __name__ == '__main__':  # pragma: no cover
     # Use for debugging
     foo.cli_main(['db', 'create'])

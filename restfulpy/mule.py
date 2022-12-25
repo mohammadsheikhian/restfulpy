@@ -1,14 +1,13 @@
-import signal
-import threading
 import time
 import traceback
 from datetime import datetime, timedelta
 
-from nanohttp import settings
+from nanohttp import settings, context as ctx
 from sqlalchemy import Integer, Enum, Unicode, DateTime, or_, and_
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.sql.expression import text
 
+from .helpers import get_shard_keys, with_context
 from .logging_ import get_logger
 from .exceptions import RestfulException
 from .orm import TimestampMixin, DeclarativeBase, Field, DBSession, \
@@ -112,88 +111,111 @@ class MuleTask(TimestampMixin, DeclarativeBase):
             raise
 
 
+@with_context
 def worker(statuses={'new'}, filters=None, tries=-1):
     isolated_session = create_thread_unsafe_session()
     context = {'counter': 0}
     tasks = []
+    shard_keys = [b'sharding:test:connection-string']
 
     while True:
-        context['counter'] += 1
-        try:
-            task = MuleTask.pop(
-                statuses=statuses,
-                filters=filters,
-                session=isolated_session
-            )
+        if settings.is_database_sharding:
+            shard_keys = get_shard_keys()
 
-        except TaskPopError as ex:
-            isolated_session.rollback()
-            if tries > -1:
-                tries -= 1
-                if tries <= 0:
-                    return tasks
-            time.sleep(settings.jobs.interval)
-            continue
+        for shard_key in shard_keys:
+            shard_key = shard_key.decode()
+            shard_key = shard_key.replace(':connection-string', '')
+            shard_key = shard_key.replace('sharding:', '')
+            ctx.shard_key = shard_key
 
-        try:
-            task.execute(context)
+            context['counter'] += 1
 
-            # Task success
-            task.status = 'success'
-            task.terminated_at = datetime.utcnow()
-
-        except Exception as exp:
-            task.status = 'failed'
-            if task.fail_reason != traceback.format_exc()[-4096:]:
-                task.fail_reason = traceback.format_exc()[-4096:]
-                logger.critical(dict(
-                    message=f'Error when executing task: {task.id}',
-                    taskId=task.id,
-                    exception=exp.__doc__,
-                    failReason=task.fail_reason,
-                ))
-
-        finally:
             try:
-                if isolated_session.is_active:
-                    isolated_session.commit()
-                tasks.append((task.id, task.status))
+                task = MuleTask.pop(
+                    statuses=statuses,
+                    filters=filters,
+                    session=isolated_session
+                )
+
+            except TaskPopError as ex:
+                isolated_session.rollback()
+                if tries > -1:
+                    tries -= 1
+                    if tries <= 0:
+                        return tasks
+                continue
+
+            try:
+                task.execute(context)
+
+                # Task success
+                task.status = 'success'
+                task.terminated_at = datetime.utcnow()
+
             except Exception as exp:
-                logger.critical(exp, exc_info=True)
-                signal.pthread_kill(threading.get_ident(), signal.SIGKILL)
+                task.status = 'failed'
+                if task.fail_reason != traceback.format_exc()[-4096:]:
+                    task.fail_reason = traceback.format_exc()[-4096:]
+                    logger.critical(dict(
+                        message=f'Error when executing task: {task.id}',
+                        taskId=task.id,
+                        exception=exp.__doc__,
+                        failReason=task.fail_reason,
+                    ))
+
+            finally:
+                try:
+                    if isolated_session.is_active:
+                        isolated_session.commit()
+                    tasks.append((task.id, task.status))
+                except Exception as exp:
+                    logger.critical(exp, exc_info=True)
+        time.sleep(settings.jobs.interval)
 
 
+@with_context
 def renew(session=DBSession):
+    shard_keys = [b'sharding:test:connection-string']
+
     while True:
         renew_time_range = datetime.utcnow() - \
             timedelta(minutes=settings.renew_mule_worker.time_range)
-        task_id = None
 
-        try:
-            task = session.query(MuleTask) \
-                .with_for_update() \
-                .filter(MuleTask.status == 'in-progress') \
-                .filter(MuleTask.started_at <= renew_time_range) \
-                .order_by(MuleTask.id) \
-                .first()
-            if task is None:
-                time.sleep(settings.renew_mule_worker.gap)
-                continue
+        if settings.is_database_sharding:
+            shard_keys = get_shard_keys()
 
-            task_id = task.id
-            task.status = 'new'
-            task.started_at = None
-            task.terminated_at = None
-            session.commit()
-            logger.info(f'Task: {task_id} successfully renewed.')
+        for shard_key in shard_keys:
+            shard_key = shard_key.decode()
+            shard_key = shard_key.replace(':connection-string', '')
+            shard_key = shard_key.replace('sharding:', '')
+            ctx.shard_key = shard_key
 
-        except OperationalError as exp:
-            logger.critical(exp, exc_info=True)
-            break
+            task_id = None
+            try:
+                task = session.query(MuleTask) \
+                    .with_for_update() \
+                    .filter(MuleTask.status == 'in-progress') \
+                    .filter(MuleTask.started_at <= renew_time_range) \
+                    .order_by(MuleTask.id) \
+                    .first()
+                if task is None:
+                    continue
 
-        except Exception as exp:
-            if task_id is not None:
-                logger.error(f'Error when renewing task: {task_id}')
-            logger.error(exp, exc_info=True)
-            session.rollback()
+                task_id = task.id
+                task.status = 'new'
+                task.started_at = None
+                task.terminated_at = None
+                session.commit()
+                logger.info(f'Task: {task_id} successfully renewed.')
+
+            except OperationalError as exp:
+                logger.critical(exp, exc_info=True)
+                break
+
+            except Exception as exp:
+                if task_id is not None:
+                    logger.error(f'Error when renewing task: {task_id}')
+                logger.error(exp, exc_info=True)
+                session.rollback()
+        time.sleep(settings.renew_mule_worker.gap)
 

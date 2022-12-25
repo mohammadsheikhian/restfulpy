@@ -18,6 +18,8 @@ timestamp: false
 #   - myzone
 timezone:
 
+is_database_sharding: false
+
 db:
   # The main uri
   url: postgresql://postgres:postgres@localhost/restfulpy_demo
@@ -34,6 +36,7 @@ db:
 migration:
   directory: migration
   ini: alembic.ini
+  shard_database: ~
 
 jwt:
   secret: JWT-SECRET
@@ -76,11 +79,11 @@ worker:
 
 renew_worker:
   time_range: 5 # Minutes
-  gap: 0.5
+  gap: 300 # Seconds
 
 renew_mule_worker:
   time_range: 5 # Minutes
-  gap: 0.5
+  gap: 300 # Seconds
 
 jobs:
   interval: .5 # Seconds

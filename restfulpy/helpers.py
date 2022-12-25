@@ -10,6 +10,13 @@ from mimetypes import guess_type
 from os.path import dirname, abspath, split
 from urllib.parse import parse_qs
 
+import redis as redis_
+from nanohttp import settings
+from nanohttp.contexts import Context
+
+
+_connection_stating_redis = None
+
 
 def import_python_module_by_filename(name, module_filename):
     """
@@ -141,5 +148,50 @@ def noneifnone(func):
     def wrapper(value):
         return func(value) if value is not None else None
 
+    return wrapper
+
+
+def generate_shard_key(shard_key):
+    return f'sharding:{shard_key}:connection-string'
+
+
+def get_connection_string(shard_key, process_name=None):
+    if process_name is None:
+        process_name = settings.context.get('process_name')
+
+    _shard_key = generate_shard_key(shard_key)
+    _remote = connection_string_redis().get(_shard_key).decode()
+    return f"{_remote}{process_name}_{shard_key}"
+
+
+def generate_shard_connection_string(username, password, remote):
+    return f'postgresql://{username}:{password}@{remote}/'
+
+
+def create_blocking_redis():
+    return redis_.StrictRedis(
+        host=settings.authentication.redis.host,
+        port=settings.authentication.redis.port,
+        db=settings.authentication.redis.db,
+        password=settings.authentication.redis.password
+    )
+
+
+def connection_string_redis():
+    global _connection_stating_redis
+    if _connection_stating_redis is None:
+        _connection_stating_redis = create_blocking_redis()
+    return _connection_stating_redis
+
+
+def get_shard_keys():
+    return connection_string_redis().scan_iter(match='*:connection-string')
+
+
+def with_context(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        with Context({}):
+            return func(*args, **kwargs)
     return wrapper
 
