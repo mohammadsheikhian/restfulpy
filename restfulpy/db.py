@@ -42,6 +42,15 @@ class PostgreSQLManager:
         self.connection.execute(f'CREATE DATABASE {self.db_name}')
         self.connection.execute(f'COMMIT')
 
+    def kill_database_sessions(self):
+        self.connection.execute(
+            f'''
+            SELECT pg_terminate_backend(pid) FROM pg_stat_activity 
+            WHERE datname = '{self.db_name}';
+            '''
+        )
+        self.connection.execute(f'COMMIT')
+
     def drop_database(self):
         self.connection.execute(f'DROP DATABASE IF EXISTS {self.db_name}')
         self.connection.execute(f'COMMIT')
