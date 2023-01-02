@@ -31,10 +31,19 @@ def mockup_smtp_server(bind=('localhost', 0)):
 
 class MockupMessenger(Messenger):
     _last_message = None
+    _count = 0
 
     @property
     def last_message(self):
         return self.__class__._last_message
+
+    @property
+    def count(self):
+        return self.__class__._count
+
+    @count.setter
+    def count(self, value):
+        self.__class__._count = value
 
     @last_message.setter
     def last_message(self, value):
@@ -50,6 +59,7 @@ class MockupMessenger(Messenger):
             from_=None,
             attachments=None
     ):
+        self.count += 1
         self.last_message = {
             'to': to,
             'body': body,
