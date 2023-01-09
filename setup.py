@@ -28,6 +28,7 @@ dependencies = [
     'user-agents',
     'pycryptodome',
     'python-dateutil',
+    'ipinfo',
 
     # Testing
     'requests',

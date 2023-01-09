@@ -6,7 +6,8 @@ import ujson
 import user_agents
 from nanohttp import context, HTTPBadRequest, settings
 
-from restfulpy.logging_ import logger
+from restfulpy.constants import GEO_DEFAULT
+from restfulpy.geolocation.providers import getter_geolocation
 from restfulpy.principal import JWTPrincipal, JWTRefreshToken
 
 
@@ -294,7 +295,7 @@ class StatefulAuthenticator(Authenticator):
         self.unregister_session(context.identity.session_id)
         super().logout()
 
-    def extract_agent_info(self):
+    def extract_agent_info(self, ip_info):
         remote_address = None
         machine = None
         os = None
@@ -323,15 +324,17 @@ class StatefulAuthenticator(Authenticator):
             'machine': machine or 'Other',
             'os': os or 'Other',
             'agent': agent or 'Other',
-            'lastActivity': datetime.utcnow().isoformat()
+            'lastActivity': datetime.utcnow().isoformat(),
+            'geoLocation': ip_info,
         }
 
     def register_session(self, member_id, session_id):
+        ip_info = self.get_ip_info()
         self.redis.hset(self.sessions_key, session_id, member_id)
         self.redis.sadd(self.get_member_sessions_key(member_id), session_id)
         self.redis.set(
             self.get_session_info_key(session_id),
-            ujson.dumps(self.extract_agent_info(), reject_bytes=False)
+            ujson.dumps(self.extract_agent_info(ip_info), reject_bytes=False)
         )
 
     def unregister_session(self, session_id=None):
@@ -369,10 +372,40 @@ class StatefulAuthenticator(Authenticator):
 
     def update_session_info(self, session_id):
         if not self.is_system_message():
+            ip_info = self.get_ip_info(session_id=session_id)
             self.redis.set(
                 self.get_session_info_key(session_id),
-                ujson.dumps(self.extract_agent_info(), reject_bytes=False)
+                ujson.dumps(self.extract_agent_info(ip_info), reject_bytes=False)
             )
+
+    def get_ip_info(self, session_id=None) -> str:
+        """
+        This method created ipinfo if session_id is None
+        and if session_id dose not has ipInfo
+        :param session_id: (String)
+        :returns: string(country:country_name,city:city_name or NA)
+        """
+        ip = context.environ.get('HTTP_X_FORWARDED_FOR')
+        info = GEO_DEFAULT
+
+        if settings.geo_ip.is_active is False or ip is None:
+            return info
+
+        if session_id is None:
+            geolocation = getter_geolocation()
+            info = geolocation.get_info_ip(ip)
+
+        else:
+            session_info = self.get_session_info(session_id)
+            if session_info is not None and \
+                    session_info.get('geoLocation') is not None and \
+                    session_info.get('geoLocation') != GEO_DEFAULT:
+                info = session_info.get('geoLocation')
+            else:
+                geolocation = getter_geolocation()
+                info = geolocation.get_info_ip(ip)
+
+        return info
 
     def get_session_info(self, session_id):
         info = self.redis.get(self.get_session_info_key(session_id))

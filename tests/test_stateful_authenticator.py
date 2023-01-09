@@ -5,6 +5,7 @@ from freezegun import freeze_time
 from nanohttp import json, Controller, context
 from nanohttp.contexts import Context
 
+from restfulpy.constants import GEO_DEFAULT
 from restfulpy.mockup import MockupApplication
 from restfulpy.authentication import StatefulAuthenticator
 from restfulpy.authorization import authorize
@@ -193,6 +194,7 @@ class TestStatefulAuthenticator(ApplicableTestCase):
                     'os': test_case['expected_os'],
                     'agent': test_case['expected_agent'],
                     'lastActivity': test_case['expected_last_activity'],
+                    'geoLocation': test_case['geo_location'],
                 }.items()
 
     def test_isonline(self):
@@ -222,6 +224,7 @@ session_info_test_cases = [
         'expected_os': 'iOS 5.1',
         'expected_agent': 'Mobile Safari 5.1',
         'expected_last_activity': '2017-07-13T13:11:44',
+        'geo_location': GEO_DEFAULT,
     },
     {
         'environment': {
@@ -235,6 +238,7 @@ session_info_test_cases = [
         'expected_os': 'Windows 7',
         'expected_agent': 'IE 9.0',
         'expected_last_activity': '2017-07-13T13:11:44',
+        'geo_location': GEO_DEFAULT,
     },
     {
         'environment': {
@@ -246,6 +250,7 @@ session_info_test_cases = [
         'expected_os': 'Other',
         'expected_agent': 'Other',
         'expected_last_activity': '2017-07-13T13:11:44',
+        'geo_location': GEO_DEFAULT,
     },
     {
         'environment': {},
@@ -254,5 +259,6 @@ session_info_test_cases = [
         'expected_os': 'Other',
         'expected_agent': 'Other',
         'expected_last_activity': '2017-07-13T13:11:44',
+        'geo_location': GEO_DEFAULT,
     }
 ]

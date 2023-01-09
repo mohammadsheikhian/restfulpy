@@ -1,0 +1,2 @@
+GEO_DEFAULT = 'NA'
+

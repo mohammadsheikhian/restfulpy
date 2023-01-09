@@ -62,6 +62,12 @@ messaging:
     - %(restfulpy_root)s/messaging/templates
   api_key: API_KEY
 
+geo_ip:
+  access_token: <access token>
+  # default_getter: restfulpy.geolocation.providers.IpApiProvider
+  default_getter: restfulpy.geolocation.providers.IpInfoProvider
+  is_active: False
+
 templates:
   directories: []
 
