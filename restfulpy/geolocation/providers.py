@@ -29,6 +29,9 @@ class IpInfoProvider(GeoLocation):
         :returns: string(country:country_name,city:city_name or NA)
         """
         _location = GEO_DEFAULT
+        if settings.geo_ip.is_active is False or ip is None:
+            return _location
+
         try:
             access_token = settings.geo_ip.access_token
             handler = ipinfo.getHandler(access_token=access_token)
@@ -62,6 +65,8 @@ class IpApiProvider(GeoLocation):
         :returns: string(country:country_name,city:city_name or NA)
         """
         _location = GEO_DEFAULT
+        if settings.geo_ip.is_active is False or ip is None:
+            return _location
 
         try:
             response = requests.get(f'https://ipapi.co/{ip}/json/').json()

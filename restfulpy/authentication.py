@@ -373,9 +373,10 @@ class StatefulAuthenticator(Authenticator):
     def update_session_info(self, session_id):
         if not self.is_system_message():
             ip_info = self.get_ip_info(session_id=session_id)
+            _agent_info = self.extract_agent_info(ip_info)
             self.redis.set(
                 self.get_session_info_key(session_id),
-                ujson.dumps(self.extract_agent_info(ip_info), reject_bytes=False)
+                ujson.dumps(_agent_info, reject_bytes=False)
             )
 
     def get_ip_info(self, session_id=None) -> str:
@@ -386,10 +387,6 @@ class StatefulAuthenticator(Authenticator):
         :returns: string(country:country_name,city:city_name or NA)
         """
         ip = context.environ.get('HTTP_X_FORWARDED_FOR')
-        info = GEO_DEFAULT
-
-        if settings.geo_ip.is_active is False or ip is None:
-            return info
 
         if session_id is None:
             geolocation = getter_geolocation()
