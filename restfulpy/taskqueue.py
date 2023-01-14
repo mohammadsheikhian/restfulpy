@@ -199,6 +199,7 @@ def worker(statuses={'new'}, filters=None, tries=-1):
                         taskId=task.id,
                         exception=exp.__doc__,
                         failReason=task.fail_reason,
+                        shardKey=shard_key,
                     ))
 
             finally:
