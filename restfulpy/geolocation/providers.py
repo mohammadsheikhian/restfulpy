@@ -5,7 +5,7 @@ import requests
 from nanohttp import settings
 
 from restfulpy.constants import GEO_DEFAULT
-from restfulpy.mule import logger
+from restfulpy.logging_ import logger
 from restfulpy.helpers import construct_class_by_name, Singleton
 
 
@@ -21,8 +21,16 @@ class IpInfoProvider(GeoLocation):
     For more details check https://ipinfo.io/
     """
 
-    @staticmethod
-    def get_info_ip(ip: str) -> str:
+    def __init__(self):
+        access_token = settings.geo_ip.access_token
+        ttl = settings.geo_ip.ttl
+        maxsize = settings.geo_ip.maxsize
+        self.handler = ipinfo.getHandler(
+            access_token=access_token,
+            cache_options={'ttl': ttl, 'maxsize': maxsize}
+        )
+
+    def get_info_ip(self, ip: str) -> str:
         """
         This method use ipinfo to get detail of ip
         :param ip:(string)
@@ -33,9 +41,8 @@ class IpInfoProvider(GeoLocation):
             return _location
 
         try:
-            access_token = settings.geo_ip.access_token
-            handler = ipinfo.getHandler(access_token=access_token)
-            details = handler.getDetails(ip)
+            details = \
+                self.handler.getDetails(ip, timeout=settings.geo_ip.time_out)
             if hasattr(details, 'country_name') and hasattr(details, 'city'):
                 _location = f'country:{details.country_name},' \
                     f'city:{details.city}'
@@ -69,11 +76,14 @@ class IpApiProvider(GeoLocation):
             return _location
 
         try:
-            response = requests.get(f'https://ipapi.co/{ip}/json/').json()
+            response = requests.get(
+                url=f'https://ipapi.co/{ip}/json/',
+                timeout=settings.geo_ip.time_out,
+            ).json()
             if hasattr(response, 'country_name') and hasattr(response, 'city'):
                 _location = f'country:{response.get("country_name")},' \
                     f'city:{response.get("city")}'
-
+            
         except Exception as ex:
             exception = {
                 'Traceback': traceback.format_exc(),

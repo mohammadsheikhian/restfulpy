@@ -6,8 +6,8 @@ import ujson
 import user_agents
 from nanohttp import context, HTTPBadRequest, settings
 
-from restfulpy.constants import GEO_DEFAULT
 from restfulpy.geolocation.providers import getter_geolocation
+from restfulpy.logging_ import logger
 from restfulpy.principal import JWTPrincipal, JWTRefreshToken
 
 
@@ -329,7 +329,7 @@ class StatefulAuthenticator(Authenticator):
         }
 
     def register_session(self, member_id, session_id):
-        ip_info = self.get_ip_info()
+        ip_info = self.get_ip_info(session_id)
         self.redis.hset(self.sessions_key, session_id, member_id)
         self.redis.sadd(self.get_member_sessions_key(member_id), session_id)
         self.redis.set(
@@ -372,36 +372,24 @@ class StatefulAuthenticator(Authenticator):
 
     def update_session_info(self, session_id):
         if not self.is_system_message():
-            ip_info = self.get_ip_info(session_id=session_id)
+            ip_info = self.get_ip_info(session_id)
             _agent_info = self.extract_agent_info(ip_info)
             self.redis.set(
                 self.get_session_info_key(session_id),
                 ujson.dumps(_agent_info, reject_bytes=False)
             )
 
-    def get_ip_info(self, session_id=None) -> str:
+    def get_ip_info(self, session_id=str) -> str:
         """
-        This method created ipinfo if session_id is None
-        and if session_id dose not has ipInfo
-        :param session_id: (String)
+        This method return details of ip
         :returns: string(country:country_name,city:city_name or NA)
         """
         ip = context.environ.get('HTTP_X_FORWARDED_FOR')
 
-        if session_id is None:
-            geolocation = getter_geolocation()
-            info = geolocation.get_info_ip(ip)
+        geolocation = getter_geolocation()
+        info = geolocation.get_info_ip(ip)
 
-        else:
-            session_info = self.get_session_info(session_id)
-            if session_info is not None and \
-                    session_info.get('geoLocation') is not None and \
-                    session_info.get('geoLocation') != GEO_DEFAULT:
-                info = session_info.get('geoLocation')
-            else:
-                geolocation = getter_geolocation()
-                info = geolocation.get_info_ip(ip)
-
+        logger.debug(f'Set info: {info} for ip: {ip} in session: {session_id}')
         return info
 
     def get_session_info(self, session_id):
