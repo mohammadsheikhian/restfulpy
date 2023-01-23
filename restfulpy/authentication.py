@@ -386,6 +386,15 @@ class StatefulAuthenticator(Authenticator):
         """
         ip = context.environ.get('HTTP_X_FORWARDED_FOR')
 
+        if settings.geo_ip.is_active is False:
+            session_info = self.get_session_info(session_id)
+
+            if session_info is not None and \
+                    session_info.get('geoLocation') is not None:
+
+                info = session_info.get('geoLocation')
+                return info
+
         geolocation = getter_geolocation()
         info = geolocation.get_info_ip(ip)
 
