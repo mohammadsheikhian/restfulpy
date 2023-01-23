@@ -210,10 +210,19 @@ class StatefulAuthenticator(Authenticator):
     """
 
     Redis data-model:
-
         sessions: HashMap { session_id: member_id }
         member:{member_id}: Set { session_id }
         sessions:{session_id}:info:  String { user-agent }
+
+    Redis command:
+        hdel auth:sessions:{session_id}
+        hset auth:sessions:{ session_id: member_id }
+        hget auth:sessions:{session_id}
+        hexists auth:sessions:{session_id}
+
+        smembers auth:member:{member_id}
+        srem auth:member:{member_id} { session_id }
+        sadd auth:member:{member_id} { session_id }
 
     User-Agent structure: {
         remoteAddress: 127.0.0.1,
