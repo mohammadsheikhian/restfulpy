@@ -68,7 +68,7 @@ geo_ip:
   default_getter: restfulpy.geolocation.providers.IpInfoProvider
   is_active: False
   time_out: 2 # Seconds
-  ttl: 2592000 # 30*24*3600 Seconds
+  ttl: 5184000 # 60*24*3600 Seconds
   maxsize: 4000
 
 templates:
