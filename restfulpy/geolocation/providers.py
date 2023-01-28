@@ -23,10 +23,10 @@ class GeoLocation(metaclass=Singleton):
 
     def __init__(self):
         self.redis = redis.StrictRedis(
-            host=settings.authentication.redis.host,
-            port=settings.authentication.redis.port,
+            host=settings.redis.host,
+            port=settings.redis.port,
             db=settings.authentication.redis.db,
-            password=settings.authentication.redis.password
+            password=settings.redis.password
         )
 
     @staticmethod

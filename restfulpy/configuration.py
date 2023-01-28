@@ -76,9 +76,6 @@ templates:
 
 authentication:
   redis:
-    host: localhost
-    port: 6379
-    password: ~
     db: 0
 
 worker:
@@ -143,6 +140,17 @@ logging:
       format: "%%(asctime)s - %%(name)s - %%(levelname)s - %%(message)s"
       date_format: "%%Y-%%m-%%d %%H:%%M:%%S"
 
+redis:
+  host: localhost
+  port: 6379
+  password: ~
+
+rabbitmq:
+  host: localhost
+  port: 5672
+  account:
+    username: guest
+    password: guest
 """
 
 

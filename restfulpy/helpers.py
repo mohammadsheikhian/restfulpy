@@ -170,10 +170,10 @@ def generate_shard_connection_string(username, password, remote):
 
 def create_blocking_redis():
     return redis_.StrictRedis(
-        host=settings.authentication.redis.host,
-        port=settings.authentication.redis.port,
+        host=settings.redis.host,
+        port=settings.redis.port,
         db=settings.authentication.redis.db,
-        password=settings.authentication.redis.password
+        password=settings.redis.password
     )
 
 

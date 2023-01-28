@@ -265,10 +265,10 @@ class StatefulAuthenticator(Authenticator):
     @staticmethod
     def create_blocking_redis_client():
         return redis.StrictRedis(
-            host=settings.authentication.redis.host,
-            port=settings.authentication.redis.port,
+            host=settings.redis.host,
+            port=settings.redis.port,
             db=settings.authentication.redis.db,
-            password=settings.authentication.redis.password
+            password=settings.redis.password
         )
 
     @property
