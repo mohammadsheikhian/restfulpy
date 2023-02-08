@@ -208,21 +208,52 @@ class Authenticator:
 
 class StatefulAuthenticator(Authenticator):
     """
-
     Redis data-model:
-        sessions: HashMap { session_id: member_id }
-        member:{member_id}: Set { session_id }
-        sessions:{session_id}:info:  String { user-agent }
+        auth:sessions HashMap {session_id: member_id}
+        auth:member:{member_id} Set {session_id}
+        auth:sessions:{session_id}:info  String {user-agent}
 
-    Redis command:
-        hdel auth:sessions:{session_id}
-        hset auth:sessions:{ session_id: member_id }
-        hget auth:sessions:{session_id}
-        hexists auth:sessions:{session_id}
+    session_id = 7eaddf57-e5
+    member_id = 1
+    Redis command 'auth:sessions':
+        delete => hdel auth:sessions session_id member_id
+        delete => hdel auth:sessions session_id
+        set    => hset auth:sessions session_id member_id
+        get    => hget auth:sessions session_id -> return: "1"
+        exist  => hexists auth:sessions session_id
 
-        smembers auth:member:{member_id}
-        srem auth:member:{member_id} { session_id }
-        sadd auth:member:{member_id} { session_id }
+    Redis command 'auth:member:{member_id}':
+        remove   => srem auth:sessions:member_id session_id
+        add      => sadd auth:sessions:member_id session_id
+        pop      => spop auth:member:member_id -> return: "session_id"
+        smembers => smembers auth:member:member_id
+                    return: [
+                        "a35dbcaa-8a13-44af-adc9-3cd26dd2f7b7"
+                        "00e0a9b6-47c0-4b52-8448-6ca9ef1ef5f8"
+                        "7eaddf57-e567-45da-92c5-ba1035afb25d"
+                    ]
+        delete => del auth:member:member_id
+
+    Redis command 'auth:sessions:{session_id}:info':
+        user-agent-info = {
+            'remoteAddress': 127.0.0.1 or 'NA',
+            'machine': pc or 'Other',
+            'os': android 4.2.2 or 'Other',
+            'agent': chrome 55 or 'Other',
+            'lastActivity': 2015-10-26T07:46:36.615661
+        }
+
+        set    => set auth:sessions:session_id:info {user-agent-info}
+        delete => del auth:sessions:session_id:info
+        get    => get auth:sessions:session_id:info
+                  return: "{
+                      'remoteAddress': 127.0.0.1 or 'NA',
+                      'machine': pc or 'Other',
+                      'os': android 4.2.2 or 'Other',
+                      'agent': chrome 55 or 'Other',
+                      'lastActivity': 2015-10-26T07:46:36.615661
+                      'location': 'country:Iran, city:Tehran',
+                  }"
 
     User-Agent structure: {
         remoteAddress: 127.0.0.1,
@@ -231,7 +262,8 @@ class StatefulAuthenticator(Authenticator):
         agent: chrome 55,
         client: RestfulpyClient-js 3.4.5-alpha14,
         app: Mobile Token (shark) 1.5.4,
-        lastActivity: 2015-10-26T07:46:36.615661
+        lastActivity: 2015-10-26T07:46:36.615661,
+        location: 'country:Iran, city:Tehran',
     }
 
         User-Agent can contains customized token and comment in order to
