@@ -187,7 +187,6 @@ class TestStatefulAuthenticator(ApplicableTestCase):
 
                 info = self.__application__.__authenticator__\
                     .get_session_info(response.json['sessionId'])
-
                 assert info.items() == {
                     'remoteAddress': test_case['expected_remote_address'],
                     'machine': test_case['expected_machine'],
@@ -224,7 +223,7 @@ session_info_test_cases = [
         'expected_os': 'iOS 5.1',
         'expected_agent': 'Mobile Safari 5.1',
         'expected_last_activity': '2017-07-13T13:11:44',
-        'geo_location': GEO_DEFAULT,
+        'geo_location': dict(country=GEO_DEFAULT, city=GEO_DEFAULT),
     },
     {
         'environment': {
@@ -238,7 +237,7 @@ session_info_test_cases = [
         'expected_os': 'Windows 7',
         'expected_agent': 'IE 9.0',
         'expected_last_activity': '2017-07-13T13:11:44',
-        'geo_location': GEO_DEFAULT,
+        'geo_location': dict(country=GEO_DEFAULT, city=GEO_DEFAULT),
     },
     {
         'environment': {
@@ -250,7 +249,7 @@ session_info_test_cases = [
         'expected_os': 'Other',
         'expected_agent': 'Other',
         'expected_last_activity': '2017-07-13T13:11:44',
-        'geo_location': GEO_DEFAULT,
+        'geo_location': dict(country=GEO_DEFAULT, city=GEO_DEFAULT),
     },
     {
         'environment': {},
@@ -259,6 +258,6 @@ session_info_test_cases = [
         'expected_os': 'Other',
         'expected_agent': 'Other',
         'expected_last_activity': '2017-07-13T13:11:44',
-        'geo_location': GEO_DEFAULT,
+        'geo_location': dict(country=GEO_DEFAULT, city=GEO_DEFAULT),
     }
 ]

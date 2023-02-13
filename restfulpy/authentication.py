@@ -420,10 +420,10 @@ class StatefulAuthenticator(Authenticator):
                 ujson.dumps(_agent_info, reject_bytes=False)
             )
 
-    def get_ip_info(self, session_id=str) -> str:
+    def get_ip_info(self, session_id=str) -> dict:
         """
         This method return details of ip
-        :returns: string(country:country_name,city:city_name or NA)
+        :returns: {country:country_name,city:city_name} or NA
         """
         ip = context.environ.get('HTTP_X_FORWARDED_FOR')
 
