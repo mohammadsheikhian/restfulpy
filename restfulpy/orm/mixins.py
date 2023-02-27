@@ -178,7 +178,7 @@ class DeactivationMixin(ActivationMixin):
 class PaginationMixin:
     __take_header_key__ = 'HTTP_X_TAKE'
     __skip_header_key__ = 'HTTP_X_SKIP'
-    __max_take__ = 100
+    __max_take__ = 200
 
     @classmethod
     def paginate_by_request(cls, query):
