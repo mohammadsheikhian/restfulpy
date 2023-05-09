@@ -82,6 +82,10 @@ class Authenticator:
         return context.environ.get(self.is_system_message_key) == \
             settings.jwt.system_message_secret
 
+    def is_inactivity(self):
+        return self.activity_key in context.environ \
+            and context.environ.get(self.activity_key).lower() == 'false'
+
     def create_principal(self, member_id=None, session_id=None, **kwargs):
         raise NotImplementedError()
 
@@ -290,6 +294,7 @@ class StatefulAuthenticator(Authenticator):
     sessions_key = 'auth:sessions'
     members_key = 'auth:member:%s'
     session_info_key = 'auth:sessions:%s:info'
+    activity_key = 'HTTP_ACTIVITY'
     remote_address_key = 'REMOTE_ADDR'
     agent_key = 'HTTP_USER_AGENT'
     x_forwarded_for = 'HTTP_X_FORWARDED_FOR'
@@ -412,7 +417,7 @@ class StatefulAuthenticator(Authenticator):
         self.update_session_info(principal.session_id)
 
     def update_session_info(self, session_id):
-        if not self.is_system_message():
+        if not self.is_system_message() and not self.is_inactivity():
             ip_info = self.get_ip_info(session_id)
             _agent_info = self.extract_agent_info(ip_info)
             self.redis.set(

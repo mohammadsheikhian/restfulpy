@@ -196,6 +196,28 @@ class TestStatefulAuthenticator(ApplicableTestCase):
                     'geoLocation': test_case['geo_location'],
                 }.items()
 
+            # Testing test cases
+            for test_case in session_info_test_cases:
+                # Our new session info should be updated
+                self.when(
+                    'Getting session info with activity header',
+                    '/me',
+                    extra_environ=test_case['environment'],
+                    headers={'ACTIVITY': 'false'}
+                )
+                assert status == 200
+                assert 'sessionId' in response.json
+
+                info = self.__application__.__authenticator__ \
+                    .get_session_info(response.json['sessionId'])
+                assert info.items() != {
+                    'remoteAddress': test_case['expected_remote_address'],
+                    'machine': test_case['expected_machine'],
+                    'os': test_case['expected_os'],
+                    'agent': test_case['expected_agent'],
+                    'geoLocation': test_case['geo_location'],
+                }.items()
+
     def test_isonline(self):
         with Context(environ={}, application=self.__application__):
             authenticator = self.__application__.__authenticator__
