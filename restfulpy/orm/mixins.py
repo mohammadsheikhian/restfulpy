@@ -50,10 +50,11 @@ class ModifiedMixin(TimestampMixin):
 
     @staticmethod
     def before_update(mapper, connection, target):
-        if not target.object.__exclude__.issubset(target.unmodified):
-            return
-
-        target.object.auto_modified_at = datetime.utcnow()
+        for key in target.committed_state:
+            if target.committed_state[key] != getattr(target.object, key) and \
+                    key not in target.object.__exclude__:
+                target.object.auto_modified_at = datetime.utcnow()
+                return 
 
     @classmethod
     def __declare_last__(cls):
