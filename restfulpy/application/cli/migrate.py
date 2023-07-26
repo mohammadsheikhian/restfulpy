@@ -23,12 +23,20 @@ class MigrateSubCommand(SubCommand):
             action='append',
             help='Shard keys you want to migrate, Example: -k 1 -k 2',
         ),
+        Argument(
+            '-s',
+            '--skip_master',
+            action='store_true',
+            default=False,
+            help="set true if you don't want to migrate master database",
+        ),
     ]
 
     def __call__(self, args):
         current_directory = os.curdir
         try:
             settings.migration.shard_database = args.shard_keys
+            settings.migration.skip_master = args.skip_master
 
             os.chdir(args.application.root_path)
             alembic_ini = join(args.application.root_path, 'alembic.ini')
