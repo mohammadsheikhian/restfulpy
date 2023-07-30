@@ -37,6 +37,7 @@ migration:
   directory: migration
   ini: alembic.ini
   shard_database: ~
+  skip_master: False
 
 jwt:
   secret: JWT-SECRET
