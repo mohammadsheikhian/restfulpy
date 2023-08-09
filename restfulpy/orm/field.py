@@ -72,7 +72,7 @@ def composite(*args, json=None, protected=None, readonly=None, **kwargs):
         'readonly': readonly,
     }
 
-    return sa_composite(*args, info=info, **kwargs)
+    return sa_composite(info=info, *args)
 
 
 def synonym(*args, json=None, protected=None, readonly=None, **kwargs):

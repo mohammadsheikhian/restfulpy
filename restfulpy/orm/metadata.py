@@ -93,8 +93,7 @@ class MetadataField(FieldInfo):
             watermark=info.get('watermark', None),
             label=info.get('label', None),
             example=info.get('example', None),
-            primary_key=hasattr(c.expression, 'primary_key') \
-                and c.expression.primary_key,
+            primary_key=hasattr(c, 'primary_key') and c.primary_key,
             readonly=info.get('readonly', False),
             protected=info.get('protected', False),
             message=info.get('message')

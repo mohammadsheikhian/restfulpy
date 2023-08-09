@@ -3,7 +3,7 @@ from urllib.parse import urlparse
 
 import psycopg2
 from nanohttp import settings
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 
 
 class PostgreSQLManager:
@@ -19,7 +19,7 @@ class PostgreSQLManager:
     def __enter__(self):
         self.admin_engine = create_engine(self.admin_url)
         self.connection = self.admin_engine.connect()
-        self.connection.execute('commit')
+        self.connection.execute(text('commit'))
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -27,9 +27,9 @@ class PostgreSQLManager:
         self.admin_engine.dispose()
 
     def database_exists(self):
-        r = self.connection.execute(
+        r = self.connection.execute(text(
             f'SELECT 1 FROM pg_database WHERE datname = \'{self.db_name}\''
-        )
+        ))
         try:
             ret = r.cursor.fetchall()
             return ret
@@ -39,21 +39,21 @@ class PostgreSQLManager:
     def create_database(self, exist_ok=False):
         if exist_ok and self.database_exists():
             return
-        self.connection.execute(f'CREATE DATABASE {self.db_name}')
-        self.connection.execute(f'COMMIT')
+        self.connection.execute(text(f'CREATE DATABASE {self.db_name}'))
+        self.connection.execute(text(f'COMMIT'))
 
     def kill_database_sessions(self):
-        self.connection.execute(
+        self.connection.execute(text(
             f'''
             SELECT pg_terminate_backend(pid) FROM pg_stat_activity 
             WHERE datname = '{self.db_name}';
             '''
-        )
-        self.connection.execute(f'COMMIT')
+        ))
+        self.connection.execute(text(f'COMMIT'))
 
     def drop_database(self):
-        self.connection.execute(f'DROP DATABASE IF EXISTS {self.db_name}')
-        self.connection.execute(f'COMMIT')
+        self.connection.execute(text(f'DROP DATABASE IF EXISTS {self.db_name}'))
+        self.connection.execute(text(f'COMMIT'))
 
     @contextlib.contextmanager
     def cursor(self, query=None, args=None):

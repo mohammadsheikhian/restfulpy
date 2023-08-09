@@ -16,7 +16,7 @@ dependencies = [
     'easycli >= 1.3, < 2',
     'argcomplete',
     'appdirs',
-    'sqlalchemy < 2',
+    'sqlalchemy < 3',
     'alembic',
     'itsdangerous <= 2.0.1',
     'mako',

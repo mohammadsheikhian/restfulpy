@@ -5,8 +5,8 @@ from decimal import Decimal
 
 from nanohttp import context, HTTPNotFound, HTTPBadRequest, validate
 from sqlalchemy import Column
-from sqlalchemy.ext.associationproxy import ASSOCIATION_PROXY
-from sqlalchemy.ext.hybrid import HYBRID_PROPERTY
+from sqlalchemy.ext.associationproxy import AssociationProxyExtensionType
+from sqlalchemy.ext.hybrid import HybridExtensionType
 from sqlalchemy.inspection import inspect
 from sqlalchemy.orm import Query, CompositeProperty, \
     RelationshipProperty
@@ -133,10 +133,15 @@ class BaseModel(object):
             if k == '__mapper__':
                 continue
 
-            if c.extension_type == ASSOCIATION_PROXY:
+            if c.extension_type == \
+                    AssociationProxyExtensionType.ASSOCIATION_PROXY:
                 continue
 
-            if (not hybrids and c.extension_type == HYBRID_PROPERTY) \
+            hybrid_types = [
+                HybridExtensionType.HYBRID_METHOD,
+                HybridExtensionType.HYBRID_PROPERTY,
+            ]
+            if (not hybrids and (c.extension_type in hybrid_types)) \
                     or (not relationships and k in mapper.relationships) \
                     or (not synonyms and k in mapper.synonyms) \
                     or (not composites and k in mapper.composites):

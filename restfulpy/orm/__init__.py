@@ -3,9 +3,9 @@ from os.path import exists
 
 from nanohttp import settings, context
 from sqlalchemy import create_engine as sa_create_engine, inspect
-from sqlalchemy.orm import scoped_session, sessionmaker, Session
+from sqlalchemy.orm import scoped_session, sessionmaker, Session, \
+    declarative_base
 from sqlalchemy.sql.schema import MetaData
-from sqlalchemy.ext.declarative import declarative_base
 from alembic import config, command
 
 from .field import Field, relationship, composite, synonym
