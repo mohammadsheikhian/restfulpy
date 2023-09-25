@@ -154,9 +154,17 @@ class Authenticator:
         self.setup_identity_response_header(principal)
         if setup_header:
             self.setup_response_headers(principal)
-
-    def verify_token(self, encoded_token):
+    
+    def verify_bearer_token(self, encoded_token):
         return JWTPrincipal.load(encoded_token, force=self.is_system_message())
+
+    def verify_apikey_token(self, encoded_token):
+        raise NotImplementedError()
+    
+    def verify_token(self, encoded_token):
+        if encoded_token.startswith('ApiToken '):
+            return self.verify_apikey_token(encoded_token)
+        return self.verify_bearer_token(encoded_token)
 
     def authenticate_request(self):
         if self.token_key not in context.environ:
