@@ -1,5 +1,6 @@
 from bddrest import response, when, status
-from nanohttp import context, json, RestController, HTTPNotFound, HTTPStatus
+from nanohttp import context, json, RestController, HTTPNotFound, HTTPStatus, \
+    HTTPNoContent
 from sqlalchemy import Unicode, Integer
 
 from restfulpy.controllers import JSONPatchControllerMixin
@@ -19,6 +20,10 @@ class Person(DeclarativeBase):
         watermark='Title',
         label='Title'
     )
+    likes = Field(
+        Integer,
+        default=0,
+    )
 
 
 class Root(JSONPatchControllerMixin, RestController):
@@ -37,6 +42,17 @@ class Root(JSONPatchControllerMixin, RestController):
         )
         DBSession.add(person)
         return person
+
+    @json
+    @commit
+    def like(self, person_id):
+
+        person = DBSession.get(Person, person_id)
+        if person is None:
+            raise HTTPNotFound()
+
+        person.likes += 1
+        raise HTTPNoContent()
 
     @json(prevent_form=True)
     def get(self, title: str):
@@ -74,13 +90,15 @@ class TestJsonPatchMixin(ApplicableTestCase):
             url='/',
             json=[
                 dict(op='CREATE', path='', value=dict(title='first')),
+                dict(op='LIKE', path=f'{self.person.id}'),
                 dict(op='CREATE', path='', value=dict(title='second'))
             ]
         ):
             assert status == 200
-            assert len(response.json) == 2
+            assert len(response.json) == 3
             assert response.json[0]['id'] is not None
-            assert response.json[1]['id'] is not None
+            assert response.json[1] == ""
+            assert response.json[2]['id'] is not None
 
             when(
                 'Testing the list method using patch',

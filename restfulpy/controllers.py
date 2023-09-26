@@ -44,22 +44,31 @@ class JSONPatchControllerMixin:
 
         try:
             for patch in patches:
-                context.form = patch.get('value', {})
-                path, context.query = split_url(patch['path'])
-                context.method = patch['op'].lower()
-                context.request_content_length = \
-                    len(context.form) if context.form else 0
+                try:
+                    context.form = patch.get('value', {})
+                    path, context.query = split_url(patch['path'])
+                    context.method = patch['op'].lower()
+                    context.request_content_length = \
+                        len(context.form) if context.form else 0
 
-                remaining_paths = path.split('/')
-                if remaining_paths and not remaining_paths[0]:
-                    return_data = self()
-                else:
-                    return_data = self(*remaining_paths)
+                    remaining_paths = path.split('/')
+                    if remaining_paths and not remaining_paths[0]:
+                        return_data = self()
+                    else:
+                        return_data = self(*remaining_paths)
 
-                results.append(return_data)
+                    results.append(return_data)
 
-                DBSession.flush()
-                context.query = {}
+                    DBSession.flush()
+                    context.query = {}
+                except Exception as exc:
+                    if hasattr(exc, 'status') and '200' <= exc.status < '400':
+                        results.append('""')
+
+                        DBSession.flush()
+                        context.query = {}
+                    else:
+                        raise exc
 
             DBSession.commit()
             return '[%s]' % ',\n'.join(results)
@@ -69,3 +78,4 @@ class JSONPatchControllerMixin:
             raise
         finally:
             del context.jsonpatch
+
