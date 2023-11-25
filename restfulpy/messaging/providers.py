@@ -2,6 +2,7 @@ import smtplib
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.utils import formataddr
 from os.path import basename
 
 from mako.lookup import TemplateLookup
@@ -65,7 +66,7 @@ class SMTPProvider(Messenger):
 
         msg = MIMEMultipart()
         msg['Subject'] = subject
-        msg['From'] = from_
+        msg['From'] = formataddr((from_, settings.smtp.username))
         msg['To'] = to
         if cc:
             msg['Cc'] = cc
