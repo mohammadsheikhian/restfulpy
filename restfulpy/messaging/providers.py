@@ -101,7 +101,7 @@ class SendGridProvider(Messenger):
 
         body = self.render_body(body, template_filename)
         message = Mail(
-            from_email=from_,
+            from_email=(settings.smtp.username, from_),
             to_emails=to,
             subject=subject,
             html_content=body,
