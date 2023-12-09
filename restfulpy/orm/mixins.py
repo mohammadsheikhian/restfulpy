@@ -2,7 +2,7 @@ import re
 from datetime import datetime
 
 from nanohttp import context, HTTPBadRequest
-from sqlalchemy import DateTime, between, desc
+from sqlalchemy import DateTime, between, desc, or_
 from sqlalchemy.event import listen
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.sql.expression import nullslast, nullsfirst
@@ -242,6 +242,11 @@ class FilteringMixin:
             if not len(items):
                 raise HTTPBadRequest('Invalid query string: %s' % value)
             expression = column.in_([import_value(column, j) for j in items])
+            if '0' in [item.strip() for item in items]:
+                expressions = list()
+                expressions.append(expression)
+                expressions.append(column.is_(None))
+                expression = or_(*expressions)
             if not_:
                 expression = ~expression
 
@@ -261,7 +266,7 @@ class FilteringMixin:
 
             return return_(expression)
 
-        if value == '\x00':
+        if value == '\x00' or value == '0':
             expression = column.is_(None)
         elif value == '!\x00':
             expression = column.isnot(None)

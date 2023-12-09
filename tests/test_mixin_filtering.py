@@ -12,6 +12,7 @@ class FilteringObject(FilteringMixin, DeclarativeBase):
 
     id = Field(Integer, primary_key=True)
     title = Field(Unicode(50))
+    description = Field(Unicode(50), nullable=True, not_none=False)
 
 
 class Interval(FilteringMixin, DeclarativeBase):
@@ -82,6 +83,10 @@ def test_filtering_mixin(db):
 
     # IS NOT NULL
     with Context({'QUERY_STRING': 'title=!%00'}):
+        assert FilteringObject.filter_by_request(query).count() == 6
+
+    # IS NULL
+    with Context({'QUERY_STRING': 'description=0'}):
         assert FilteringObject.filter_by_request(query).count() == 6
 
     # ==
