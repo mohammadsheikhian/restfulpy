@@ -4,7 +4,7 @@ import itsdangerous
 import redis
 import ujson
 import user_agents
-from nanohttp import context, HTTPBadRequest, settings
+from nanohttp import context, HTTPBadRequest, settings, HTTPUnauthorized
 
 from restfulpy.geolocation.providers import getter_geolocation
 from restfulpy.logging_ import logger
@@ -188,7 +188,7 @@ class Authenticator:
         except itsdangerous.BadData:
             # The token is Malformed
             self.bad()
-            raise HTTPBadRequest()
+            raise HTTPUnauthorized()
 
     def login(self, credentials):
         member = self.validate_credentials(credentials)

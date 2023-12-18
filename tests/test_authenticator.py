@@ -114,7 +114,7 @@ class TestAuthenticator(ApplicableTestCase):
             assert response.headers['X-Identity'] == '1'
 
             when('Token is broken', authorization='bad')
-            assert status == 400
+            assert status == 401
 
             when('Token is empty', url='/me', authorization='')
             assert status == 401
