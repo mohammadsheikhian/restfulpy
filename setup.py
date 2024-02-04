@@ -29,6 +29,7 @@ dependencies = [
     'pycryptodome',
     'python-dateutil',
     'ipinfo',
+    'kavenegar',
 
     # Testing
     'requests',

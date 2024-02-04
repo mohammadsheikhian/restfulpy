@@ -63,6 +63,15 @@ messaging:
     - %(restfulpy_root)s/messaging/templates
   api_key: API_KEY
 
+sms:
+  provider: 
+    worldwide: restfulpy.messaging.sms.ConsoleSmsProvider
+    iran: restfulpy.messaging.sms.ConsoleSmsProvider
+  sender: cas@Omadeus
+  reference: Omadeus
+  token: <token>
+  url: https://gw.cmtelecom.com/v1.0/message
+
 geo_ip:
   access_token: <access token>
   # default_getter: restfulpy.geolocation.providers.IpApiProvider
