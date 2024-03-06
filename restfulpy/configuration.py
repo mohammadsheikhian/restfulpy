@@ -64,13 +64,22 @@ messaging:
   api_key: API_KEY
 
 sms:
-  provider: 
-    worldwide: restfulpy.messaging.sms.ConsoleSmsProvider
-    iran: restfulpy.messaging.sms.ConsoleSmsProvider
-  sender: cas@Omadeus
-  reference: Omadeus
-  token: <token>
-  url: https://gw.cmtelecom.com/v1.0/message
+  default_provider:
+    name: restfulpy.messaging.sms.ConsoleSmsProvider
+    api_key: <API-key>
+    url: <url>
+    sender: <sender>
+    reference: <reference>
+    channel: <channel>
+  
+  providers:
+    98:
+      name: restfulpy.messaging.sms.ConsoleSmsProvider
+      api_key: <API-key>
+      url: <url>
+      sender: <sender>
+      reference: <reference>
+      channel: <channel>
 
 geo_ip:
   access_token: <access token>

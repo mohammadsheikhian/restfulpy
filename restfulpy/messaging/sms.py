@@ -2,41 +2,59 @@ import requests
 import ujson
 from kavenegar import KavenegarAPI
 from nanohttp import settings
+from twilio.rest import Client
 
 from restfulpy.helpers import construct_class_by_name
 
 
-class SmsProvider:  # pragma: no cover
-    def send(self, to_number, text):
+class SmsProvider:
+
+    def __init__(self, config):
+        self.config = config
+
+    def send(self, to_number, text, *args, **kwargs):
         raise NotImplementedError()
 
+    @property
+    def name(self):
+        raise NotImplementedError()
 
-class CmSmsProvider(SmsProvider):  # pragma: no cover
-    def send(self, to_number, text):
+class CmSmsProvider(SmsProvider):
+
+    @property
+    def name(self):
+        return 'Cm'
+
+    def send(self, to_number, text, *args, **kwargs):
         headers = {'Content-Type': 'application/json'}
         data = {
             "messages": {
-                "authentication": {"productToken": settings.sms.token},
+                "authentication": {"productToken": self.config.api_key},
                 "msg": [{
                     "body": {"content": text},
-                    "from": settings.sms.sender,
+                    "from": self.config.sender,
                     "to": [{"number": f'{to_number}'}],
-                    "reference": settings.sms.reference
+                    "reference": self.config.reference
                 }]
             }
         }
         data = ujson.dumps(data)
 
         requests.post(
-            settings.sms.url,
+            self.config.url,
             data=data,
             headers=headers
         )
 
 
-class IranSmsProvider(SmsProvider):  # pragma: no cover
-    def send(self, to_number, text):
-        api = KavenegarAPI(settings.sms.token)
+class IranKavenegarSmsProvider(SmsProvider):
+
+    @property
+    def name(self):
+        return 'kavenegar'
+
+    def send(self, to_number, text, *args, **kwargs):
+        api = KavenegarAPI(self.config.api_key)
         params = {
             'sender': '',  # optional
             'receptor': str(to_number),
@@ -45,35 +63,43 @@ class IranSmsProvider(SmsProvider):  # pragma: no cover
         api.sms_send(params)
 
 
-class AutomaticSmsProvider(SmsProvider):  # pragma: no cover
-    __worldwide_sms_provider = None
-    __iran_sms_provider = None
+class ConsoleSmsProvider(SmsProvider):
 
     @property
-    def worldwide_sms_provider(self):
-        if not self.__worldwide_sms_provider:
-            self.__worldwide_sms_provider = \
-                construct_class_by_name(settings.sms.provider.worldwide)
-        return self.__worldwide_sms_provider
+    def name(self):
+        return 'console'
 
-    @property
-    def iran_sms_provider(self):
-        if not self.__iran_sms_provider:
-            self.__iran_sms_provider = \
-                construct_class_by_name(settings.sms.provider.iran)
-        return self.__iran_sms_provider
-
-    def send(self, to_number, text):
-        if str(to_number).startswith('98'):
-            self.iran_sms_provider.send(to_number=to_number, text=text)
-        else:
-            self.worldwide_sms_provider.send(to_number=to_number, text=text)
-
-
-class ConsoleSmsProvider(SmsProvider):  # pragma: no cover
-    def send(self, to_number, text):
+    def send(self, to_number, text, *args, **kwargs):
         print(
             'SMS send request received for number : %s with text : %s' %
             (to_number, text)
         )
+
+
+class TwilioSmsProvider(SmsProvider):
+
+    @property
+    def name(self):
+        return 'twilio'
+
+    def send(self, to_number, text, *args, **kwargs):
+        client = Client(self.config.api_key[0], self.config.api_key[1])
+        channel = self.config.channel
+        if channel is None:
+            channel = 'sms'
+
+        message = client.messages.create(
+            from_=f'{channel}:+{self.config.sender}',
+            to=f'{channel}:+{to_number}',
+            **kwargs,
+        )
+
+
+def create_sms_provider(to_number):
+    for key, value in settings.sms.providers.items():
+        if str(to_number).startswith(str(key)):
+            return construct_class_by_name(value.name, config=value)
+    return construct_class_by_name(
+        settings.sms.default_provider.name, settings.sms.default_provider
+    )
 

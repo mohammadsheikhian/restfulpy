@@ -30,6 +30,7 @@ dependencies = [
     'python-dateutil',
     'ipinfo',
     'kavenegar',
+    'twilio',
 
     # Testing
     'requests',
