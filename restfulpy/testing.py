@@ -86,6 +86,7 @@ def db(request):
     # Overriding the db uri because this is a test session, so db.test_uri will
     # be used instead of the db.uri
     settings.db.url = settings.db.test_url
+    settings.is_testing = True
 
     # Drop the previously created db if exists.
     with DBManager(url=settings.db.test_url) as m:
@@ -163,6 +164,7 @@ class ApplicableTestCase:
         # Overriding the db uri because this is a test session, so db.test_uri
         # will be used instead of the db.uri
         settings.db.url = settings.db.test_url
+        settings.is_testing = True
 
     @classmethod
     def create_session(cls, *a, shard_key=None, expire_on_commit=False, **kw):

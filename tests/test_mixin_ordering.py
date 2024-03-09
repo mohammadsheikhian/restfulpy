@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from nanohttp import settings
 from nanohttp.contexts import Context
 from sqlalchemy import Integer, Unicode, DateTime
 from sqlalchemy.orm import synonym
@@ -31,6 +32,8 @@ class OrderingObject(OrderingMixin, DeclarativeBase):
 
 
 def test_ordering_mixin(db):
+    assert settings.is_testing is True
+
     session = db()
 
     for i in range(1, 6):

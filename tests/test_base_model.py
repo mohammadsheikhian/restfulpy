@@ -1,5 +1,5 @@
 from bddrest import response, when, Update, status
-from nanohttp import json
+from nanohttp import json, settings
 from sqlalchemy import Unicode, Integer, Date, Float, ForeignKey, Boolean, \
     DateTime
 from sqlalchemy.ext.associationproxy import association_proxy
@@ -203,6 +203,8 @@ class TestBaseModel(ApplicableTestCase):
     __controller_factory__ = Root
 
     def test_update_from_request(self):
+        assert settings.is_testing is True
+
         with self.given(
                 'Posting a form',
                 verb='POST',
