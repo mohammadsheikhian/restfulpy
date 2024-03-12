@@ -85,12 +85,14 @@ class TwilioSmsProvider(SmsProvider):
     def send(self, to_number, text, *args, **kwargs):
         client = Client(self.config.api_key[0], self.config.api_key[1])
         channel = self.config.channel
-        if channel is None:
-            channel = 'sms'
+        if channel is None or channel == 'sms':
+            channel = ''
+        else:
+            channel = f'{channel}:'
 
         message = client.messages.create(
-            from_=f'{channel}:+{self.config.sender}',
-            to=f'{channel}:+{to_number}',
+            from_=f'{channel}+{self.config.sender}',
+            to=f'{channel}+{to_number}',
             **kwargs,
         )
 
