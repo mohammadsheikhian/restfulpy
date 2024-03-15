@@ -7,6 +7,8 @@ from sqlalchemy import Integer, Enum, Unicode, DateTime
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.sql.expression import text
 
+from .constants import RESTFULPY_TASK_NEW, RESTFULPY_TASK_SUCCESS, \
+    RESTFULPY_TASK_IN_PROGRESS, RESTFULPY_TASK_FAILED
 from .helpers import get_shard_keys, with_context
 from .logging_ import get_logger
 from .exceptions import RestfulException
@@ -21,26 +23,56 @@ class TaskPopError(RestfulException):
     pass
 
 
+class MaxRetriesExceededError(RestfulException):
+    pass
+
+
 class RestfulpyTask(TimestampMixin, DeclarativeBase):
     __tablename__ = 'restfulpy_task'
 
-    id = Field(Integer, primary_key=True, json='id')
-    priority = Field(Integer, nullable=False, default=50, json='priority')
+    __max_retries__ = None  # set to None to not apply max_reties on the tasks.
+
+    id = Field(
+        Integer,
+        primary_key=True,
+        json='id',
+    )
+    priority = Field(
+        Integer,
+        nullable=False,
+        default=50,
+        json='priority',
+    )
     status = Field(
         Enum(
-            'new',
-            'success',
-            'in-progress',
-            'failed',
+            RESTFULPY_TASK_NEW,
+            RESTFULPY_TASK_SUCCESS,
+            RESTFULPY_TASK_IN_PROGRESS,
+            RESTFULPY_TASK_FAILED,
             name='task_status_enum'
         ),
         default='new',
-        nullable=True, json='status'
+        nullable=True,
+        json='status',
     )
-    fail_reason = Field(Unicode(4096), nullable=True, json='reason')
-    started_at = Field(DateTime, nullable=True, json='startedAt')
-    terminated_at = Field(DateTime, nullable=True, json='terminatedAt')
+    fail_reason = Field(
+        Unicode(4096),
+        nullable=True,
+    )
+    started_at = Field(
+        DateTime,
+        nullable=True,
+    )
+    terminated_at = Field(
+        DateTime,
+        nullable=True,
+    )
     type = Field(Unicode(50))
+    retries = Field(
+        Integer,
+        nullable=False,
+        default=0,
+    )
 
     __mapper_args__ = {
         'polymorphic_identity': __tablename__,
@@ -51,7 +83,12 @@ class RestfulpyTask(TimestampMixin, DeclarativeBase):
         raise NotImplementedError
 
     @classmethod
-    def pop(cls, statuses={'new'}, filters=None, session=DBSession):
+    def pop(
+            cls,
+            statuses={RESTFULPY_TASK_NEW},
+            filters=None,
+            session=DBSession,
+    ):
 
         find_query = session.query(
             cls.id.label('id'),
@@ -77,8 +114,9 @@ class RestfulpyTask(TimestampMixin, DeclarativeBase):
         update_query = RestfulpyTask.__table__.update() \
             .where(RestfulpyTask.id == cte.c.id) \
             .values(
-                status='in-progress',
+                status=RESTFULPY_TASK_IN_PROGRESS,
                 started_at=datetime.utcnow(),
+                retries=RestfulpyTask.retries + 1,
             ) \
             .returning(RestfulpyTask.__table__.c.id)
 
@@ -96,6 +134,10 @@ class RestfulpyTask(TimestampMixin, DeclarativeBase):
                 .query(RestfulpyTask) \
                 .filter(RestfulpyTask.id == self.id) \
                 .one()
+            if isolated_task.__max_retries__ is not None and \
+                    isolated_task.retries >= isolated_task.__max_retries__:
+                raise MaxRetriesExceededError()
+
             isolated_task.do_(context)
             session.commit()
         except:
@@ -117,7 +159,7 @@ class RestfulpyTask(TimestampMixin, DeclarativeBase):
 
             to_clean_ids = session.query(RestfulpyTask.id) \
                 .filter(RestfulpyTask.started_at < time_limitation) \
-                .filter(RestfulpyTask.status == 'success')
+                .filter(RestfulpyTask.status == RESTFULPY_TASK_SUCCESS)
 
             for task_class in RestfulpyTask.__subclasses__():
                 session.query(task_class) \
@@ -131,21 +173,25 @@ class RestfulpyTask(TimestampMixin, DeclarativeBase):
             session.commit()
 
     @classmethod
-    def reset_status(cls, task_id, session=DBSession,
-                     statuses=['in-progress']):
+    def reset_status(
+            cls,
+            task_id,
+            session=DBSession,
+            statuses=[RESTFULPY_TASK_IN_PROGRESS],
+    ):
         session.query(RestfulpyTask) \
             .filter(RestfulpyTask.status.in_(statuses)) \
             .filter(RestfulpyTask.id == task_id) \
             .with_for_update() \
             .update({
-                'status': 'new',
+                'status': RESTFULPY_TASK_NEW,
                 'started_at': None,
                 'terminated_at': None
             }, synchronize_session='fetch')
 
 
 @with_context
-def worker(statuses={'new'}, filters=None, tries=-1):
+def worker(statuses={RESTFULPY_TASK_NEW}, filters=None, tries=-1):
     isolated_session = create_thread_unsafe_session()
     context = {'counter': 0}
     tasks = []
@@ -187,8 +233,12 @@ def worker(statuses={'new'}, filters=None, tries=-1):
                 task.execute(context)
 
                 # Task success
-                task.status = 'success'
+                task.status = RESTFULPY_TASK_SUCCESS
                 task.terminated_at = datetime.utcnow()
+
+            except MaxRetriesExceededError as exp:
+                task.status = RESTFULPY_TASK_FAILED
+                # task.fail_reason = traceback.format_exc()[-4096:]
 
             except Exception as exp:
                 task.status = 'new'
@@ -234,15 +284,17 @@ def renew(session=DBSession):
             try:
                 task = session.query(RestfulpyTask) \
                     .with_for_update() \
-                    .filter(RestfulpyTask.status == 'in-progress') \
-                    .filter(RestfulpyTask.started_at <= renew_time_range) \
+                    .filter(
+                        RestfulpyTask.status == RESTFULPY_TASK_IN_PROGRESS,
+                        RestfulpyTask.started_at <= renew_time_range
+                    ) \
                     .order_by(RestfulpyTask.id) \
                     .first()
                 if task is None:
                     continue
 
                 task_id = task.id
-                task.status = 'new'
+                task.status = RESTFULPY_TASK_NEW
                 task.started_at = None
                 task.terminated_at = None
                 session.commit()

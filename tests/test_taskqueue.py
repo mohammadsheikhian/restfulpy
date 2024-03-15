@@ -53,6 +53,17 @@ class BadTask(RestfulpyTask):
             raise Exception()
 
 
+class RetryTask(RestfulpyTask):
+    __max_retries__ = 2
+
+    __mapper_args__ = {
+        'polymorphic_identity': 'retry_task'
+    }
+
+    def do_(self, context):
+        if self.retries % 3 != 0:
+            raise Exception()
+
 def test_worker(db):
     session = db()
     awesome_task = AwesomeTask()
@@ -65,6 +76,9 @@ def test_worker(db):
         tries=1,
     )
     session.add(bad_task)
+
+    retry_task = RetryTask()
+    session.add(retry_task)
 
     session.commit()
 
@@ -105,11 +119,18 @@ def test_worker(db):
     RestfulpyTask.cleanup(datetime.utcnow(), session)
     session.commit()
 
+    tasks = worker(tries=0, filters=RestfulpyTask.type == 'retry_task')
+    assert len(tasks) == 2
+    session.refresh(retry_task)
+    assert retry_task.status == 'failed'
+    assert retry_task.retries == 2
+
     # Doing all remaining tasks
     tasks = worker(tries=0)
     assert len(tasks) == 1
 
     tasks = session.query(RestfulpyTask).all()
-    assert len(tasks) == 1
-
+    assert len(tasks) == 2
+    assert tasks[0].status == 'failed'
+    assert tasks[0].retries == 2
 
