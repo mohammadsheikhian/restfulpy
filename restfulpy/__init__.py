@@ -5,5 +5,5 @@ from .application import Application
 
 warnings.filterwarnings('ignore', message='Unknown REQUEST_METHOD')
 
-__version__ = '4.22.0'
+__version__ = '4.23.0'
 
