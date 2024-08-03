@@ -8,7 +8,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.sql.expression import nullslast, nullsfirst
 
 from .field import Field
-
+from ..datetimehelpers import utcnow
 
 FILTERING_IN_OPERATOR_REGEX = re.compile(r'!?IN\((?P<items>.*)\)')
 FILTERING_BETWEEN_OPERATOR_REGEX = \
@@ -17,11 +17,11 @@ FILTERING_BETWEEN_OPERATOR_REGEX = \
 
 class TimestampMixin:
     created_at = Field(
-        DateTime,
+        DateTime(timezone=True),
         nullable=False,
         json='createdAt',
         readonly=True,
-        default=datetime.utcnow,
+        default=utcnow,
         label='Created At'
     )
 
@@ -37,7 +37,7 @@ class ModifiedMixin(TimestampMixin):
     __exclude__ = set()
 
     auto_modified_at = Field(
-        DateTime,
+        DateTime(timezone=True),
         nullable=True,
         json='autoModifiedAt',
         readonly=True,
@@ -54,7 +54,7 @@ class ModifiedMixin(TimestampMixin):
         for key in committed_state_keys:
             if target.committed_state[key] != getattr(target.object, key) and \
                     key not in target.object.__exclude__:
-                target.object.auto_modified_at = datetime.utcnow()
+                target.object.auto_modified_at = utcnow()
                 return
 
     @classmethod
@@ -64,7 +64,7 @@ class ModifiedMixin(TimestampMixin):
 
 class SoftDeleteMixin:
     removed_at = Field(
-        DateTime,
+        DateTime(timezone=True),
         nullable=True,
         json='removedAt',
         readonly=True,
@@ -86,7 +86,7 @@ class SoftDeleteMixin:
     def soft_delete(self, ignore_errors=False):
         if not ignore_errors:
             self.assert_is_not_deleted()
-        self.removed_at = datetime.utcnow()
+        self.removed_at = utcnow()
 
     def soft_undelete(self, ignore_errors=False):
         if not ignore_errors:
@@ -113,7 +113,7 @@ class SoftDeleteMixin:
 class ActivationMixin:
 
     activated_at = Field(
-        DateTime,
+        DateTime(timezone=True),
         nullable=True,
         json='activatedAt',
         readonly=True,
@@ -127,7 +127,7 @@ class ActivationMixin:
 
     @is_active.setter
     def is_active(self, value):
-        self.activated_at = datetime.utcnow() if value else None
+        self.activated_at = utcnow() if value else None
 
     @is_active.expression
     def is_active(self):
@@ -147,11 +147,11 @@ class ActivationMixin:
 class AutoActivationMixin(ActivationMixin):
 
     activated_at = Field(
-        DateTime,
+        DateTime(timezone=True),
         nullable=True,
         json='activatedAt',
         readonly=True,
-        default=datetime.utcnow,
+        default=utcnow,
         label='Activated At'
     )
 
@@ -159,7 +159,7 @@ class AutoActivationMixin(ActivationMixin):
 class DeactivationMixin(ActivationMixin):
 
     deactivated_at = Field(
-        DateTime,
+        DateTime(timezone=True),
         nullable=True,
         json='deactivatedAt',
         readonly=True,
@@ -168,7 +168,7 @@ class DeactivationMixin(ActivationMixin):
 
     @ActivationMixin.is_active.setter
     def is_active(self, value):
-        now = datetime.utcnow()
+        now = utcnow()
         if value:
             self.activated_at = now
             self.deactivated_at = None
@@ -335,7 +335,7 @@ class OrderingMixin:
 
 class ApproveRequiredMixin:
     approved_at = Field(
-        DateTime,
+        DateTime(timezone=True),
         nullable=True,
         json='approvedAt',
         readonly=True
@@ -347,7 +347,7 @@ class ApproveRequiredMixin:
 
     @is_approved.setter
     def is_approved(self, value):
-        self.approved_at = datetime.utcnow() if value else None
+        self.approved_at = utcnow() if value else None
 
     @is_approved.expression
     def is_approved(self):

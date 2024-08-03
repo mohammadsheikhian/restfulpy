@@ -25,7 +25,12 @@ class MuleTask(TimestampMixin, DeclarativeBase):
     __tablename__ = 'mule_task'
 
     id = Field(Integer, primary_key=True, json='id')
-    at = Field(DateTime, nullable=True, json='at', default=datetime.now)
+    at = Field(
+        DateTime(timezone=True),
+        nullable=True,
+        json='at',
+        default=datetime.utcnow,
+    )
     status = Field(
         Enum(
             'new',
@@ -39,10 +44,22 @@ class MuleTask(TimestampMixin, DeclarativeBase):
         default='new',
         nullable=True, json='status'
     )
-    expired_at = Field(DateTime, nullable=True, json='expiredAt')
+    expired_at = Field(
+        DateTime(timezone=True),
+        nullable=True,
+        json='expiredAt',
+    )
     fail_reason = Field(Unicode(4096), nullable=True, json='reason')
-    terminated_at = Field(DateTime, nullable=True, json='terminatedAt')
-    started_at = Field(DateTime, nullable=True, json='startedAt')
+    terminated_at = Field(
+        DateTime(timezone=True),
+        nullable=True,
+        json='terminatedAt',
+    )
+    started_at = Field(
+        DateTime(timezone=True),
+        nullable=True,
+        json='startedAt',
+    )
     type = Field(Unicode(50))
 
     __mapper_args__ = {
@@ -68,13 +85,14 @@ class MuleTask(TimestampMixin, DeclarativeBase):
             )
 
         find_query = find_query \
-            .filter(cls.at <= datetime.now()) \
+            .filter(cls.at <= datetime.utcnow()) \
             .filter(
                 or_(
-                    cls.status == 'in-progress', cls.status == 'new', \
+                    cls.status == 'in-progress',
+                    cls.status == 'new',
                     and_(
                         cls.status == 'failed',
-                        cls.expired_at > datetime.now()
+                        cls.expired_at > datetime.utcnow()
                     )
                 )
             ) \

@@ -60,11 +60,11 @@ class RestfulpyTask(TimestampMixin, DeclarativeBase):
         nullable=True,
     )
     started_at = Field(
-        DateTime,
+        DateTime(timezone=True),
         nullable=True,
     )
     terminated_at = Field(
-        DateTime,
+        DateTime(timezone=True),
         nullable=True,
     )
     type = Field(Unicode(50))

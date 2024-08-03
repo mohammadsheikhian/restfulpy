@@ -2,7 +2,7 @@ import re
 from datetime import datetime, tzinfo, date
 
 from dateutil.parser import parse as dateutil_parse
-from dateutil.tz import tzutc, tzstr, tzlocal
+from dateutil.tz import tzutc, tzstr, tzlocal, UTC
 
 from .configuration import settings
 from .helpers import noneifnone
@@ -13,6 +13,10 @@ POSIX_TIME_PATTERN = re.compile('^\d+(\.\d+)?$')
 
 def localtimezone():
     return tzlocal()
+
+
+def utcnow():
+    return datetime.now(UTC)
 
 
 def configuredtimezone():
@@ -34,10 +38,9 @@ def localnow():
     return datetime.now(timezone)
 
 
-
 @noneifnone
 def parse_datetime(value) -> datetime:
-    """Parses a string a a datetime object
+    """Parses a string a datetime object
 
     The reason of wrapping this functionality is to preserve compatibility
     and future exceptions handling.
@@ -56,30 +59,31 @@ def parse_datetime(value) -> datetime:
         else:
             return datetime.fromtimestamp(value, timezone)
 
-
     parsed_value = dateutil_parse(value)
-    if timezone is not None:
-        # The application is configured to use UTC or another time zone:
 
-        # Submit without timezone: Reject and tell the user to specify the
-        # timezone.
-        if parsed_value.tzinfo is None:
-            raise ValueError('You have to specify the timezone')
-
-        # The parsed value is a timezone aware object.
-        # If ends with Z: accept and assume as the UTC
-        # Then converting it to configured timezone and continue the
-        # rest of process
-        parsed_value = parsed_value.astimezone(timezone)
-
-    elif parsed_value.tzinfo:
-        # The application is configured to use system's local timezone
-        # And the sumittd value has tzinfo.
-        # So converting it to system's local and removing the tzinfo
-        # to achieve a naive object.
-        parsed_value = parsed_value\
-            .astimezone(localtimezone())\
-            .replace(tzinfo=None)
+    # N11513
+    # if timezone is not None:
+    #     # The application is configured to use UTC or another time zone:
+    # 
+    #     # Submit without timezone: Reject and tell the user to specify the
+    #     # timezone.
+    #     if parsed_value.tzinfo is None:
+    #         raise ValueError('You have to specify the timezone')
+    # 
+    #     # The parsed value is a timezone aware object.
+    #     # If ends with Z: accept and assume as the UTC
+    #     # Then converting it to configured timezone and continue the
+    #     # rest of process
+    #     parsed_value = parsed_value.astimezone(timezone)
+    # 
+    # elif parsed_value.tzinfo:
+    #     # The application is configured to use system's local timezone
+    #     # And the sumittd value has tzinfo.
+    #     # So converting it to system's local and removing the tzinfo
+    #     # to achieve a naive object.
+    #     parsed_value = parsed_value\
+    #         .astimezone(localtimezone())\
+    #         .replace(tzinfo=None)
 
     return parsed_value
 
@@ -129,9 +133,9 @@ def format_datetime(value):
         value = datetime(value.year, value.month, value.day, tzinfo=timezone)
 
     if timezone is None and value.tzinfo is not None:
-        # The output shoudn't have a timezone specifier.
+        # The output shouldn't have a timezone specifier.
         # So, converting it to system's local time
-        value = value.astimezone(localtimezone()).replace(tzinfo=None)
+        value = value.astimezone(UTC).replace(tzinfo=UTC)
 
     elif timezone is not None:
         if value.tzinfo is None:
