@@ -6,8 +6,6 @@ from os import path
 import pytest
 from bddrest import Given, when
 from nanohttp import settings
-from restfulpy.db import PostgreSQLManager
-from restfulpy.orm import DBSession, engines
 from sqlalchemy.orm.session import close_all_sessions
 
 import restfulpy
