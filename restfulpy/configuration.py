@@ -19,8 +19,6 @@ timestamp: false
 #   - myzone
 timezone:
 
-is_database_sharding: false
-
 db:
   # The main uri
   url: postgresql://postgres:postgres@localhost/restfulpy_demo
@@ -96,6 +94,9 @@ templates:
 
 authentication:
   redis:
+    host: localhost
+    port: 6379
+    password: ~
     db: 0
 
 worker:
