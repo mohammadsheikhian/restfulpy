@@ -7,19 +7,15 @@ import pytest
 from bddrest import Given, when
 from nanohttp import settings
 from restfulpy.db import PostgreSQLManager
-from restfulpy.helpers import generate_shard_key, connection_string_redis, \
-    get_connection_string
-from restfulpy.orm import master_session_factory, MasterDBSession, \
-    DBSession, engines, get_engine_by_shard_key
+from restfulpy.orm import DBSession, engines
 from sqlalchemy.orm.session import close_all_sessions
-from sqlalchemy.orm import sessionmaker, scoped_session
 
 import restfulpy
+from .application import Application
 from .configuration import configure
 from .db import PostgreSQLManager as DBManager
-from .mockup import MockupApplication
-from .orm import setup_schema, sharded_session_factory, create_engine, \
-    init_model
+from .orm import setup_schema, session_factory, create_engine, init_model, \
+    DBSession
 
 
 LEGEND = '''
@@ -166,38 +162,11 @@ class ApplicableTestCase:
         settings.db.url = settings.db.test_url
         settings.is_testing = True
 
-    @classmethod
-    def create_session(cls, *a, shard_key=None, expire_on_commit=False, **kw):
-        shard_key = str(shard_key) if shard_key else None
-        if shard_key is None:
-            engine = cls._master_engine
-        else:
-            engine = cls._engines.get(shard_key)
-
-        if not engine:
-            process_name = settings.context.get('process_name')
-            url = settings.db.test_url.split('/')
-            url = '/'.join(url[:-1])
-            url = f'{url}/{process_name}_{shard_key}'
-            engine = create_engine(url=url)
-            cls._engines[shard_key] = engine
-
-        new_session = sessionmaker(
-            bind=engine,
-            autoflush=False,
-            autocommit=False,
-            expire_on_commit=False,
-            twophase=False,
-        )
-
-        new_session = scoped_session(new_session)
-        cls._sessions.append(new_session)
-        return new_session
 
     @classmethod
-    def create_master_session(cls, *a, expire_on_commit=False, **kw):
-        new_session = master_session_factory(
-            bind=cls._master_engine,
+    def create_session(cls, *a, expire_on_commit=False, **kw):
+        new_session = session_factory(
+            bind=cls._engine,
             *a,
             expire_on_commit=expire_on_commit,
             **kw
@@ -212,21 +181,29 @@ class ApplicableTestCase:
 
         return self.__session
 
+
     @classmethod
     def initialize_orm(cls):
-        # Drop the previously created db if exists.
+        # Drop the previosely created db if exists.
         with DBManager(url=settings.db.test_url) as m:
             m.drop_database()
             m.create_database()
 
-        engine = create_engine(url=settings.db.test_url)
-        cls._master_engine = engine
-        session = cls.create_master_session(expire_on_commit=False)
-        setup_schema(cls._master_engine)
+        # An engine to create db schema and bind future created sessions
+        cls._engine = create_engine()
+
+        # A session factory to create and store session
+        # to close it on tear down
+        session = cls.create_session(expire_on_commit=True)
+
+        # Creating database objects
+        setup_schema(session)
         session.commit()
+
+        # Closing the session to free the connection for future sessions.
         session.close()
 
-        cls.__application__.initialize_orm()
+        cls.__application__.initialize_orm(cls._engine)
 
     @classmethod
     def mockup(cls):
@@ -245,31 +222,13 @@ class ApplicableTestCase:
             except IndexError:
                 break
 
-        MasterDBSession.remove()
         DBSession.remove()
+        if cls._engine is not None:
+            cls._engine.dispose()
 
-        if MasterDBSession.bind is not None:
-            MasterDBSession.bind.dispose()
-
-        if cls._master_engine is not None:
-            cls._master_engine.dispose()
-
-        for k, engine in engines.items():
-            if engine is not None:
-                engine.dispose()
-
-        for k, engine in cls._engines.items():
-            if engine is not None:
-                engine.dispose()
-
-        # Dropping the previously created database
+        # Dropping the previousely created database
         with DBManager(url=settings.db.test_url) as m:
             m.drop_database()
-
-        for k, engine in cls._engines.items():
-            # Dropping the previously created database
-            with DBManager(url=str(engine.url)) as m:
-                m.drop_database()
 
     @classmethod
     def setup_class(cls):
@@ -396,24 +355,6 @@ class ApplicableTestCase:
     def logout(self):
         self._authentication_token = None
 
-    @classmethod
-    def initialize_shard_db(cls, shard_key):
-        settings.is_database_sharding = True
-
-        test_url_parts = settings.db.test_url.split('/')
-        database_connection_string = '/'.join(test_url_parts[:-1]) + '/'
-
-        _shard_key = generate_shard_key(shard_key)
-        _redis = connection_string_redis()
-        _redis.set(_shard_key, database_connection_string)
-
-        database_connection_string = get_connection_string(shard_key)
-        with PostgreSQLManager(database_connection_string) as db_admin:
-            db_admin.drop_database()
-            db_admin.create_database()
-            engine = get_engine_by_shard_key(str(shard_key))
-            setup_schema(engine)
-
 
 class UUID1Freeze:
     _original = None
@@ -428,4 +369,3 @@ class UUID1Freeze:
     def __exit__(self, exc_type, exc_value, traceback):
         uuid.uuid1 = self._original
         self._original = None
-
