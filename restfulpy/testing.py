@@ -136,7 +136,7 @@ class TestCase:
 
 class ApplicableTestCase:
     __application__ = None
-    __application_factory__ = MockupApplication
+    __application_factory__ = Application
     __controller_factory__ = None
     __configuration__ = None
     __story_directory__ = None
