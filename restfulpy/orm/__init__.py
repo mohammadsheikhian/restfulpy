@@ -52,8 +52,9 @@ def init_model(engine):
     DBSession.configure(bind=engine)
 
 
-def setup_schema(engine=None):
-    engine = engine or DBSession.bind
+def setup_schema(session=None):
+    session = session or DBSession
+    engine = session.bind
     inspector = inspect(engine)
     table_names = inspector.get_table_names()
     has_alembic_version = True if 'alembic_version' in table_names else False
