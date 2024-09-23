@@ -65,24 +65,15 @@ You can sort like this:
 '''
 
 
-@pytest.fixture(scope='function', params=[''])
-def db(request):
-    _configuration = '''
-    db:
-      test_url: postgresql://postgres:postgres@localhost/restfulpy_test
-      administrative_url: postgresql://postgres:postgres@localhost/postgres
-    '''
-    configure(force=True)
-    settings.merge(_configuration)
-    if isinstance(request, str) or request.param != '':
-        settings.merge(request.param)
+@pytest.fixture(scope='function')
+def db():
+    configure(force=True, context=dict(dbname='restfulpy'))
 
-    # Overriding the db uri because this is a test session, so db.test_uri will
+    # Overriding the db uri becase this is a test session, so db.test_uri will
     # be used instead of the db.uri
     settings.db.url = settings.db.test_url
-    settings.is_testing = True
 
-    # Drop the previously created db if exists.
+    # Drop the previosely created db if exists.
     with DBManager(url=settings.db.test_url) as m:
         m.drop_database()
         m.create_database()
@@ -92,9 +83,8 @@ def db(request):
 
     # A session factory to create and store session to close it on tear down
     sessions = []
-
     def _connect(*a, expire_on_commit=False, **kw):
-        new_session = sharded_session_factory(
+        new_session = session_factory(
             bind=engine,
             *a,
             expire_on_commit=expire_on_commit,
@@ -106,14 +96,14 @@ def db(request):
     session = _connect(expire_on_commit=True)
 
     # Creating database objects
-    setup_schema(session.bind)
+    setup_schema(session)
     session.commit()
 
     # Closing the session to free the connection for future sessions.
     session.close()
 
-    # Preparing and binding the application shared scoped session, due some
-    # errors when a model trying to use the mentioned session internally.
+    # Preparing and binding the application shared scoped session, due the
+    # some errors when a model trying use the mentioned session internally.
     init_model(engine)
 
     yield _connect
@@ -141,8 +131,7 @@ class ApplicableTestCase:
     __configuration__ = None
     __story_directory__ = None
     __api_documentation_directory__ = None
-    _engines = {}
-    _master_engine = None
+    _engine = None
     _sessions = []
     _authentication_token = None
     __metadata__ = None
@@ -155,11 +144,9 @@ class ApplicableTestCase:
         if cls.__configuration__:
             settings.merge(cls.__configuration__)
 
-        # Overriding the db uri because this is a test session, so db.test_uri
+        # Overriding the db uri becase this is a test session, so db.test_uri
         # will be used instead of the db.uri
         settings.db.url = settings.db.test_url
-        settings.is_testing = True
-
 
     @classmethod
     def create_session(cls, *a, expire_on_commit=False, **kw):
@@ -178,7 +165,6 @@ class ApplicableTestCase:
             self.__session = self.create_session()
 
         return self.__session
-
 
     @classmethod
     def initialize_orm(cls):
@@ -206,7 +192,7 @@ class ApplicableTestCase:
     @classmethod
     def mockup(cls):
         """This is a template method so this is optional to override and you
-        haven't called the super when overriding it, because there isn't any.
+        haven't call the super when overriding it, because there isn't any.
         """
         pass
 
@@ -236,7 +222,7 @@ class ApplicableTestCase:
                 parameters['root'] = cls.__controller_factory__()
 
             cls.__application__ = cls.__application_factory__(
-                'Restfulpy testing application',
+                'restfulpytesting',
                 **parameters,
             )
 
@@ -244,9 +230,9 @@ class ApplicableTestCase:
         try:
             cls.initialize_orm()
             cls.mockup()
-        except Exception as e:
+        except:  # pragma: no cover
             cls.teardown_class()
-            raise e
+            raise
 
     @classmethod
     def teardown_class(cls):
@@ -316,7 +302,6 @@ class ApplicableTestCase:
         for k in cls.__metadata__:
             if re.match(k, resource):
                 return cls.__metadata__[k].get(name)
-        return None
 
     def given(self, *a, autodoc=True, **kw):
         if self._authentication_token is not None:
@@ -344,7 +329,7 @@ class ApplicableTestCase:
                 url,
                 verb,
                 form=form
-        ) as story:
+            ) as story:
             response = story.response
             assert response.status == '200 OK'
             assert 'token' in response.json
