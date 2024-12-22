@@ -154,13 +154,13 @@ class Authenticator:
         self.setup_identity_response_header(principal)
         if setup_header:
             self.setup_response_headers(principal)
-    
+
     def verify_bearer_token(self, encoded_token):
         return JWTPrincipal.load(encoded_token, force=self.is_system_message())
 
     def verify_apikey_token(self, encoded_token):
         raise NotImplementedError()
-    
+
     def verify_token(self, encoded_token):
         if encoded_token.startswith('ApiToken '):
             return self.verify_apikey_token(encoded_token)
@@ -310,10 +310,10 @@ class StatefulAuthenticator(Authenticator):
     @staticmethod
     def create_blocking_redis_client():
         return redis.StrictRedis(
-            host=settings.redis.host,
-            port=settings.redis.port,
+            host=settings.authentication.redis.host,
+            port=settings.authentication.redis.port,
             db=settings.authentication.redis.db,
-            password=settings.redis.password
+            password=settings.authentication.redis.password
         )
 
     @property
