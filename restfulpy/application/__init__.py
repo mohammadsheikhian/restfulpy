@@ -19,7 +19,7 @@ logger = get_logger()
 class Application(NanohttpApplication):
     """The main entry point
 
-    A web application project should be started by inheritting this class
+    A web application project should be started by inheriting this class
     and overriding some methods if desirable
 
     """
