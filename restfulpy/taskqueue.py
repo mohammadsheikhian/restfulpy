@@ -2,7 +2,7 @@ import time
 import traceback
 from datetime import datetime, timedelta
 
-from nanohttp import settings, context as ctx
+from nanohttp import settings
 from sqlalchemy import Integer, Enum, Unicode, DateTime
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.sql.expression import text
@@ -79,7 +79,7 @@ class RestfulpyTask(TimestampMixin, DeclarativeBase):
         'polymorphic_on': type
     }
 
-    def do_(self):
+    def do_(self, context):
         raise NotImplementedError
 
     @classmethod
@@ -195,72 +195,61 @@ def worker(statuses={RESTFULPY_TASK_NEW}, filters=None, tries=-1):
     isolated_session = create_thread_unsafe_session()
     context = {'counter': 0}
     tasks = []
-    shard_keys = [b'sharding:test:connection-string']
 
     while True:
-        if settings.is_database_sharding:
-            shard_keys = get_shard_keys()
+        context['counter'] += 1
 
-        for shard_key in shard_keys:
-            shard_key = shard_key.decode()
-            shard_key = shard_key.replace(':connection-string', '')
-            shard_key = shard_key.replace('sharding:', '')
-            ctx.shard_key = shard_key
+        try:
+            task = RestfulpyTask.pop(
+                statuses=statuses,
+                filters=filters,
+                session=isolated_session
+            )
+            assert task is not None
 
-            context['counter'] += 1
+        except TaskPopError as ex:
+            isolated_session.rollback()
+            if tries > -1:
+                tries -= 1
+                if tries <= 0:
+                    return tasks
+            continue
 
+        except Exception as exp:
+            logger.error(f'Error when popping task. {exp.__doc__}')
+            raise exp
+
+        try:
+            task.execute(context)
+
+            # Task success
+            task.status = RESTFULPY_TASK_SUCCESS
+            task.terminated_at = datetime.utcnow()
+
+        except MaxRetriesExceededError as exp:
+            task.status = RESTFULPY_TASK_FAILED
+            # task.fail_reason = traceback.format_exc()[-4096:]
+
+        except Exception as exp:
+            task.status = 'new'
+            if task.fail_reason != traceback.format_exc()[-4096:]:
+                task.fail_reason = traceback.format_exc()[-4096:]
+                logger.critical(dict(
+                    message=f'Error when executing task: {task.id}',
+                    taskId=task.id,
+                    exception=exp.__doc__,
+                    failReason=task.fail_reason,
+                ))
+
+        finally:
             try:
-                task = RestfulpyTask.pop(
-                    statuses=statuses,
-                    filters=filters,
-                    session=isolated_session
-                )
-                assert task is not None
+                if isolated_session.is_active:
+                    isolated_session.commit()
 
-            except TaskPopError as ex:
-                isolated_session.rollback()
-                if tries > -1:
-                    tries -= 1
-                    if tries <= 0:
-                        return tasks
-                continue
-
+                tasks.append((task.id, task.status))
             except Exception as exp:
-                logger.error(f'Error when popping task. {exp.__doc__}')
-                raise exp
-
-            try:
-                task.execute(context)
-
-                # Task success
-                task.status = RESTFULPY_TASK_SUCCESS
-                task.terminated_at = datetime.utcnow()
-
-            except MaxRetriesExceededError as exp:
-                task.status = RESTFULPY_TASK_FAILED
-                # task.fail_reason = traceback.format_exc()[-4096:]
-
-            except Exception as exp:
-                task.status = 'new'
-                if task.fail_reason != traceback.format_exc()[-4096:]:
-                    task.fail_reason = traceback.format_exc()[-4096:]
-                    logger.critical(dict(
-                        message=f'Error when executing task: {task.id}',
-                        taskId=task.id,
-                        exception=exp.__doc__,
-                        failReason=task.fail_reason,
-                        shardKey=shard_key,
-                    ))
-
-            finally:
-                try:
-                    if isolated_session.is_active:
-                        isolated_session.commit()
-
-                    tasks.append((task.id, task.status))
-                except Exception as exp:
-                    logger.critical(exp, exc_info=True)
-        time.sleep(settings.worker.gap)
+                logger.critical(exp, exc_info=True)
+    time.sleep(settings.worker.gap)
 
 
 @with_context
