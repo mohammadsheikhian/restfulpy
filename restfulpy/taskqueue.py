@@ -213,6 +213,8 @@ def worker(statuses={RESTFULPY_TASK_NEW}, filters=None, tries=-1):
                 tries -= 1
                 if tries <= 0:
                     return tasks
+
+            time.sleep(settings.worker.gap)
             continue
 
         except Exception as exp:
@@ -249,7 +251,6 @@ def worker(statuses={RESTFULPY_TASK_NEW}, filters=None, tries=-1):
                 tasks.append((task.id, task.status))
             except Exception as exp:
                 logger.critical(exp, exc_info=True)
-    time.sleep(settings.worker.gap)
 
 
 @with_context
